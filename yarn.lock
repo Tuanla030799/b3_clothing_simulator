@@ -480,6 +480,8 @@ __metadata:
     "@tailwindcss/vite": ^4.3.3
     "@types/node": ^24.0.0
     "@vitejs/plugin-vue": ^6.0.9
+    "@vue/test-utils": ^2.5.1
+    jsdom: ^29
     konva: ^10.7.1
     swiper: ^14.3.0
     typescript: ~6.0.3
@@ -2129,7 +2131,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jsdom@npm:^29.1.1":
+"jsdom@npm:^29, jsdom@npm:^29.1.1":
   version: 29.1.1
   resolution: "jsdom@npm:29.1.1"
   dependencies:

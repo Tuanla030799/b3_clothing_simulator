@@ -30,7 +30,7 @@ const featured = computed(() =>
                 alt=""
                 :width="product.image.width"
                 :height="product.image.height"
-                class="aspect-4/3 w-full rounded-xl bg-secondary/50 transition-colors group-hover:bg-secondary"
+                class="aspect-4/3 w-full rounded-xl bg-secondary/50 transition-colors group-hover:bg-secondary motion-reduce:transition-none"
               />
               <Flex vertical :gap="4" class="mt-3">
                 <Typography variant="body" weight="medium">{{ product.name }}</Typography>

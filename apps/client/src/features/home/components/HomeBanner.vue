@@ -64,7 +64,7 @@ const a11y = {
     <Swiper
       :modules="[A11y, Keyboard]"
       :slides-per-view="1"
-      :speed="500"
+      :speed="reducedMotion ? 0 : 500"
       :rewind="true"
       :keyboard="{ enabled: true, onlyInViewport: true }"
       :a11y="a11y"

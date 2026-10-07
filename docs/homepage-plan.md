@@ -1,6 +1,6 @@
 # Kế hoạch trang chủ (Home)
 
-Trạng thái: **H1–H4 đã xong**; H5 chưa làm. Code theo từng phase; chỉ làm phase đã được duyệt.
+Trạng thái: **H1–H5 đã xong** (trang chủ hoàn tất theo kế hoạch). Code theo từng phase; chỉ làm phase đã được duyệt.
 
 ## 1. Bối cảnh và phạm vi
 

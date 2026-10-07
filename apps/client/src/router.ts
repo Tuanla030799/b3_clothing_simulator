@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory, type RouterHistory, type RouteRecordRaw } from 'vue-router'
 import ComingSoonPage from './pages/ComingSoonPage.vue'
-import HomePage from './pages/HomePage.vue'
 import NotFoundPage from './pages/NotFoundPage.vue'
 
 declare module 'vue-router' {
@@ -23,7 +22,8 @@ const comingSoon = [
 ]
 
 export const routes: RouteRecordRaw[] = [
-  { path: '/', name: 'home', component: HomePage },
+  // Loaded on demand so Swiper stays out of the bundle of other pages (e.g. the design tool).
+  { path: '/', name: 'home', component: () => import('./pages/HomePage.vue') },
   {
     path: '/thiet-ke',
     name: 'designer',

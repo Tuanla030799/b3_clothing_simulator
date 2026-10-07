@@ -43,7 +43,7 @@ const icons: Record<string, Component> = {
                   :src="homeImage(collection.image)"
                   alt=""
                   fit="cover"
-                  class="absolute inset-0 size-full transition-transform duration-300 group-hover:scale-105"
+                  class="absolute inset-0 size-full transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none motion-reduce:transform-none"
                 >
                   <template #fallback>
                     <Flex

@@ -8,7 +8,7 @@ whole set arranged on a background → download it as a PNG. The selection and d
 the page: **reloading the page loses the set**. See [Not implemented yet](#not-implemented-yet).
 
 Around the tool there is a site shell (announcement bar, header, footer) and a home page being built
-in phases; see [docs/homepage-plan.md](docs/homepage-plan.md) (**H1–H4 done**).
+in phases; see [docs/homepage-plan.md](docs/homepage-plan.md) (**all phases H1–H5 done**).
 
 Repository rules: [AGENTS.md](AGENTS.md). Component guide: [packages/ui/README.md](packages/ui/README.md).
 
@@ -544,7 +544,7 @@ Code: [router.ts](apps/client/src/router.ts), [features/site](apps/client/src/fe
 - Site components use the shared `Flex` (`as="ul"` for lists, native `<li>` children) and `Link`
   (`as="RouterLink"` for routes, `external` for outside links) instead of `flex` classes and bare
   `<a>`; see the component guide.
-- Home page sections so far: banner, commitments bar, featured products, seasonal collections, process and reviews (below). Polishing is phase H5.
+- Home page sections so far: banner, commitments bar, featured products, seasonal collections, process and reviews (below), polished in phase H5.
 
 ### Home banner and commitments (phase H2)
 
@@ -598,6 +598,32 @@ Code: `features/home/components/ProcessSection.vue`, `ReviewsSection.vue`; data 
   while any sample review exists, so real data (with `isSample: false`) removes the labels without
   code changes. No average rating or review count is shown because no real numbers exist.
 - Layout: steps 1 / 2 / 4 columns (phone / 640 px / 1024 px), reviews 1 / 3 columns (phone / 768 px).
+
+### Quality notes for the home page (phase H5)
+
+- **Bundle:** the home page is a lazy route, so Swiper (and the banner/sections code) is not
+  downloaded by other pages such as the design tool. After H5 the main entry chunk is about 81 kB
+  (29 kB gzip) and the home chunk about 112 kB (35 kB gzip); Konva is still loaded only with the
+  design tool. Images use the common `Image` (lazy by default, the first banner slide eager) inside
+  frames with fixed aspect ratios, so loading does not shift the layout.
+- **Product images:** the product PNGs are 0.7–1.2 MB each and the home page shows six of them
+  (lazy-loaded, below the fold). Serve resized/optimized versions from the backend or CDN before
+  going public.
+- **Motion:** with `prefers-reduced-motion` the banner does not auto-advance (the pause/play button
+  can still start it), slide changes are instant, and card hover transitions are disabled.
+- **Accessibility checked** with axe-core (WCAG 2.0/2.1 A and AA plus best practices) on the home
+  page (desktop and phone width), the design tool and the “coming soon” / not-found pages, using the
+  Playwright browser: no violations. Every page has one `h1` (visually hidden on the home page and
+  the placeholder pages), landmarks are header / main / footer with labelled navigation, there is a
+  skip link, and the banner, menu and cards work with the keyboard. axe-core is not a project
+  dependency; it was loaded from a CDN for the check. Not verified: real screen readers and real
+  devices.
+- **Tests** (`yarn test`): data guards (`home.test.ts`, `router.test.ts`: every link resolves, ids
+  are unique, catalog ids exist, ratings valid, sample reviews flagged) and behaviour tests that run
+  in jsdom: the mobile menu (`SiteHeader.test.ts`: open/close, Escape returns focus, closes on
+  navigation, current page marking) and the banner (`HomeBanner.test.ts`: 6 s timer, restart after
+  any slide change, hold on hover/focus, pause/play, reduced motion, unmount cleanup; Swiper is
+  replaced by a small stub there).
 
 ## Not implemented yet
 

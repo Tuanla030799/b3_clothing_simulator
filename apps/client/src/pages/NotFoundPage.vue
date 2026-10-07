@@ -8,6 +8,7 @@ const router = useRouter()
 
 <template>
   <Container class="py-16">
+    <h1 class="sr-only">Không tìm thấy trang</h1>
     <EmptyState
       title="Không tìm thấy trang"
       description="Đường dẫn không tồn tại hoặc đã được đổi."

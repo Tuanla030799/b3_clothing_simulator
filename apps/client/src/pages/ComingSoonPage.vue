@@ -12,6 +12,7 @@ const title = computed(() => route.meta.title ?? 'Trang này')
 
 <template>
   <Container class="py-16">
+    <h1 class="sr-only">{{ title }} sắp ra mắt</h1>
     <EmptyState :title="`${title} sắp ra mắt`" description="Phần này đang được xây dựng.">
       <template #icon><Clock /></template>
       <template #action>
