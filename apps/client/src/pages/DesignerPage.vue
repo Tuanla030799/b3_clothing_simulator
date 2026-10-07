@@ -74,8 +74,9 @@ function editItem(instanceId: string) {
 </script>
 
 <template>
-  <div class="flex min-h-dvh flex-col">
-    <header class="border-b bg-card">
+  <!-- Rendered inside the site layout, which provides the page landmarks (header/main/footer). -->
+  <Flex vertical>
+    <div class="border-b bg-card">
       <Container>
         <Flex align="center" justify="space-between" gap="middle" class="h-16">
           <Typography as="h1" variant="heading" ellipsis>Thiết kế bộ quà</Typography>
@@ -90,9 +91,9 @@ function editItem(instanceId: string) {
           </Button>
         </Flex>
       </Container>
-    </header>
+    </div>
 
-    <main class="flex-1 py-4 lg:py-6">
+    <div class="py-4 lg:py-6">
       <Container>
         <Flex vertical gap="middle">
           <DesignerSteps :current="currentStep" />
@@ -135,6 +136,6 @@ function editItem(instanceId: string) {
           </div>
         </Flex>
       </Container>
-    </main>
-  </div>
+    </div>
+  </Flex>
 </template>

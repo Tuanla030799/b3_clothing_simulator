@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import DesignerPage from './pages/DesignerPage.vue'
+import { RouterView } from 'vue-router'
+import SiteLayout from './features/site/components/SiteLayout.vue'
 </script>
 
 <template>
-  <DesignerPage />
+  <SiteLayout>
+    <RouterView />
+  </SiteLayout>
 </template>

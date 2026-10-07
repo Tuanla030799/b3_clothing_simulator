@@ -7,6 +7,9 @@ logo, arranging the set on a background and downloading an image. V1 is frontend
 whole set arranged on a background → download it as a PNG. The selection and designs live only in
 the page: **reloading the page loses the set**. See [Not implemented yet](#not-implemented-yet).
 
+Around the tool there is a site shell (announcement bar, header, footer) and a home page being built
+in phases; see [docs/homepage-plan.md](docs/homepage-plan.md) (**H1 done**).
+
 Repository rules: [AGENTS.md](AGENTS.md). Component guide: [packages/ui/README.md](packages/ui/README.md).
 
 ## Requirements and commands
@@ -519,6 +522,29 @@ not tested.
 - A canvas that the browser marks tainted cannot be exported; images here are same-origin/blob so
   this should not occur. There is no proxy or server fallback by design.
 - Reloading the page loses the whole set and its designs.
+
+## Site shell and routes (home page, phase H1)
+
+Code: [router.ts](apps/client/src/router.ts), [features/site](apps/client/src/features/site),
+[pages](apps/client/src/pages). Plan and later phases: [docs/homepage-plan.md](docs/homepage-plan.md).
+
+- Routing uses `vue-router` (history mode, `base` from Vite's `BASE_URL`; in development the app is
+  served under `http://localhost:5173/b3_clothing_simulator/`).
+- Routes: `/` home, `/thiet-ke` the design tool (loaded on demand, no site footer), and one shared
+  “coming soon” page for menu targets that are not built (`/san-pham`, `/bo-suu-tap`,
+  `/tra-cuu-don-hang`, `/gio-hang`, `/lien-he`, `/ve-chung-toi`); unknown paths show a not-found
+  page. Route `meta.title` sets the document title (`<page> – <default title>`).
+- Layout (`SiteLayout`): skip link, dismissible announcement bar (session only), header (logo,
+  4-item menu, cart link, hamburger menu below 768 px that closes with Escape/navigation and returns
+  focus), `<main>` (focused after each navigation) and a footer with the top part only.
+- Announcement, menu and footer content are **mock data** in
+  [features/site/data/siteData.ts](apps/client/src/features/site/data/siteData.ts) with types in
+  `features/site/types.ts`; replace the source with backend data later without touching components.
+  Texts avoid promotions, prices and shipping claims; social links point to platform home pages.
+- Site components use the shared `Flex` (`as="ul"` for lists, native `<li>` children) and `Link`
+  (`as="RouterLink"` for routes, `external` for outside links) instead of `flex` classes and bare
+  `<a>`; see the component guide.
+- The home page content is temporary until phases H2–H4.
 
 ## Not implemented yet
 

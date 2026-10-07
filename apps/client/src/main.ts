@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import App from './App.vue'
+import { createAppRouter } from './router'
 import './styles/main.css'
 
 async function bootstrap() {
@@ -23,7 +24,7 @@ async function bootstrap() {
     return
   }
 
-  createApp(App).mount('#app')
+  createApp(App).use(createAppRouter()).mount('#app')
 }
 
 void bootstrap()
