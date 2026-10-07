@@ -87,6 +87,7 @@ Row:
 
 | Prop    | Type                                                                   | Default   |
 | ------- | ---------------------------------------------------------------------- | --------- |
+| as      | `'div' \| 'ul' \| 'ol'`                                                | `'div'`   |
 | gutter  | `number \| [number, number]` (px; number = horizontal, tuple = [h, v]) | `0`       |
 | align   | `'top' \| 'middle' \| 'bottom' \| 'stretch'`                           | `'top'`   |
 | justify | `'start' \| 'center' \| 'end' \| 'space-between' \| 'space-around'`    | `'start'` |
@@ -96,10 +97,13 @@ Col:
 
 | Prop                    | Type                                           | Default |
 | ----------------------- | ---------------------------------------------- | ------- |
+| as                      | `'div' \| 'li'`                                | `'div'` |
 | span                    | integer 0–24                                   | `24`    |
 | offset                  | integer 0–23                                   | `0`     |
 | xs, sm, md, lg, xl, xxl | `number \| { span?: number; offset?: number }` | —       |
 
+- `as` picks the element: `<Row as="ul">` with `<Col as="li">` children gives a real list (grids
+  of cards, menus) with the same grid behaviour; attributes such as `aria-label` go to that element.
 - 24 columns. Horizontal gutter is applied as half-gutter column padding with a matching negative
   Row margin, so spans adding up to 24 always fit on one line. Keep a Row inside padded content
   (e.g. Container) so the negative margin never reaches the viewport edge.

@@ -123,6 +123,15 @@ const lastAction = ref('—')
         </Row>
 
         <Typography variant="caption" class="mt-4 mb-3"
+          >Row as ul / Col as li (native list)</Typography
+        >
+        <Row as="ul" :gutter="16" aria-label="Row as ul">
+          <Col v-for="n in 3" :key="n" as="li" :xs="24" :md="8">
+            <div class="rounded-md bg-muted p-3">li {{ n }}</div>
+          </Col>
+        </Row>
+
+        <Typography variant="caption" class="mt-4 mb-3"
           >Row align middle, justify center</Typography
         >
         <Row :gutter="16" align="middle" justify="center">

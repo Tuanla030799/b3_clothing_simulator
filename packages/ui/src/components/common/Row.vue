@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import type { RowAlign, RowJustify } from './types'
+import type { RowAlign, RowElement, RowJustify } from './types'
 import { computed, type CSSProperties } from 'vue'
 import { cn } from '../../lib/utils'
 import { normalizeGutter, type RowGutter } from './grid'
 
 const props = withDefaults(
   defineProps<{
+    /** Rendered element; "ul"/"ol" for lists (children are Col as="li"). Default "div". */
+    as?: RowElement
     gutter?: RowGutter
     align?: RowAlign
     justify?: RowJustify
     wrap?: boolean
   }>(),
-  { gutter: 0, align: 'top', justify: 'start', wrap: true },
+  { as: 'div', gutter: 0, align: 'top', justify: 'start', wrap: true },
 )
 
 const alignClasses: Record<RowAlign, string> = {
@@ -49,7 +51,7 @@ const style = computed<CSSProperties>(() => {
 </script>
 
 <template>
-  <div :class="classes" :style="style">
+  <component :is="as" :class="classes" :style="style">
     <slot />
-  </div>
+  </component>
 </template>

@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, type CSSProperties } from 'vue'
 import { COL_BREAKPOINTS, GRID_COLUMNS, resolveColLayout, type ColSize } from './grid'
+import type { ColElement } from './types'
 
 const props = withDefaults(
   defineProps<{
+    /** Rendered element; "li" inside a Row as="ul"/"ol". Default "div". */
+    as?: ColElement
     span?: number
     offset?: number
     xs?: ColSize
@@ -13,7 +16,7 @@ const props = withDefaults(
     xl?: ColSize
     xxl?: ColSize
   }>(),
-  { span: 24, offset: 0 },
+  { as: 'div', span: 24, offset: 0 },
 )
 
 /*
@@ -49,11 +52,12 @@ const style = computed<CSSProperties>(() => {
 </script>
 
 <template>
-  <div
+  <component
+    :is="as"
     class="min-w-0 shrink-0 grow-0 px-[calc(var(--row-gutter-x,0px)/2)]"
     :class="responsiveClasses"
     :style="style"
   >
     <slot />
-  </div>
+  </component>
 </template>

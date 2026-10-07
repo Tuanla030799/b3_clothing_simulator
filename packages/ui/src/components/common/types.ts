@@ -27,6 +27,12 @@ export type ImageFit = 'contain' | 'cover'
 
 export type ImageLoading = 'lazy' | 'eager'
 
+/** Element rendered by Row; use ul/ol (with Col as="li") for lists. */
+export type RowElement = 'div' | 'ul' | 'ol'
+
+/** Element rendered by Col. */
+export type ColElement = 'div' | 'li'
+
 export type RowAlign = 'top' | 'middle' | 'bottom' | 'stretch'
 
 export type RowJustify = 'start' | 'center' | 'end' | 'space-between' | 'space-around'
