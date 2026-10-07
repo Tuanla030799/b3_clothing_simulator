@@ -1,4 +1,4 @@
-import type { BannerSlide, Commitment } from '../types'
+import type { BannerSlide, Commitment, SeasonalCollection } from '../types'
 
 /*
  * MOCK DATA — replaced by backend/admin data later. Neutral placeholder texts: no promotions,
@@ -22,8 +22,8 @@ export const bannerSlides: BannerSlide[] = [
   },
   {
     id: 'seasonal',
-    title: 'Bộ sưu tập theo mùa',
-    description: 'Gợi ý quà tặng cho từng dịp trong năm.',
+    title: 'Quà tặng cho từng dịp',
+    description: 'Khám phá các bộ sưu tập quà tặng theo mùa trong năm.',
     cta: { label: 'Xem bộ sưu tập', to: '/bo-suu-tap' },
     image: 'banner-3',
   },
@@ -35,4 +35,17 @@ export const commitments: Commitment[] = [
   { id: 'personal', title: 'Cá nhân hóa tên và hình' },
   { id: 'preview', title: 'Xem trước cả bộ' },
   { id: 'gift', title: 'Sẵn sàng để tặng' },
+]
+
+/** Catalog product ids shown in "Sản phẩm nổi bật"; ids missing from the catalog are skipped. */
+export const featuredProductIds = ['suit', 'suit-2', 'khan', 'mu', 'yem', 'bao-tay']
+
+/** Mock seasonal collections (no images yet: placeholders are shown). */
+export const seasonalCollections: SeasonalCollection[] = [
+  { id: 'giang-sinh', name: 'Giáng sinh', to: '/bo-suu-tap/giang-sinh' },
+  { id: 'tet', name: 'Tết', to: '/bo-suu-tap/tet' },
+  { id: 'trung-thu', name: 'Trung thu', to: '/bo-suu-tap/trung-thu' },
+  { id: 'mua-he', name: 'Mùa hè', to: '/bo-suu-tap/mua-he' },
+  { id: 'mua-thu', name: 'Mùa thu', to: '/bo-suu-tap/mua-thu' },
+  { id: 'mua-dong', name: 'Mùa đông', to: '/bo-suu-tap/mua-dong' },
 ]

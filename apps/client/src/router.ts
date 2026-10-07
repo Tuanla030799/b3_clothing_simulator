@@ -31,6 +31,13 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('./pages/DesignerPage.vue'),
     meta: { title: 'Thiết kế bộ quà', hideFooter: true },
   },
+  // Collection pages share the placeholder until they are built.
+  {
+    path: '/bo-suu-tap/:slug',
+    name: 'collection',
+    component: ComingSoonPage,
+    meta: { title: 'Bộ sưu tập' },
+  },
   ...comingSoon.map(({ path, title }) => ({
     path,
     name: path.slice(1),

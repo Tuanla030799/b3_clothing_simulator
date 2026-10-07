@@ -2,7 +2,8 @@ import { createMemoryHistory } from 'vue-router'
 import { describe, expect, it } from 'vitest'
 import { createAppRouter } from '../../router'
 import { homeImage } from './data/assets'
-import { bannerSlides, commitments } from './data/homeData'
+import { products } from '../designer/data/catalog'
+import { bannerSlides, commitments, featuredProductIds, seasonalCollections } from './data/homeData'
 
 describe('home page data', () => {
   const router = createAppRouter(createMemoryHistory())
@@ -13,8 +14,20 @@ describe('home page data', () => {
     }
   })
 
+  it('shows only products that exist in the catalog, without duplicates', () => {
+    const catalogIds = new Set(products.map((product) => product.id))
+    for (const id of featuredProductIds) expect(catalogIds, id).toContain(id)
+    expect(new Set(featuredProductIds).size).toBe(featuredProductIds.length)
+  })
+
+  it('points every seasonal collection at a page that resolves', () => {
+    for (const collection of seasonalCollections) {
+      expect(router.resolve(collection.to).name, collection.to).toBe('collection')
+    }
+  })
+
   it('uses unique ids so slides and items can be keyed safely', () => {
-    for (const list of [bannerSlides, commitments]) {
+    for (const list of [bannerSlides, commitments, seasonalCollections]) {
       const ids = list.map((entry) => entry.id)
       expect(new Set(ids).size).toBe(ids.length)
     }

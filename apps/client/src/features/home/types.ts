@@ -17,3 +17,12 @@ export interface Commitment {
   id: string
   title: string
 }
+
+export interface SeasonalCollection {
+  id: string
+  name: string
+  /** File name in assets/home; optional, a placeholder is shown when missing. */
+  image?: string
+  /** Router path of the collection page. */
+  to: string
+}
