@@ -1,0 +1,11 @@
+/*
+ * Shared entry stylesheet for @lituta/ui consumers.
+ * Import once from the application entry CSS: @import '@lituta/ui/styles.css';
+ */
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import './fonts.css';
+@import './tokens.css';
+
+/* Shared UI sources must be scanned by every consuming application. */
+@source '../';

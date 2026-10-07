@@ -1,0 +1,88 @@
+/*
+ * Semantic design tokens (shadcn-vue compatible names). Light theme only.
+ * Components and applications use the semantic utilities (bg-primary, text-muted-foreground...)
+ * instead of raw color values.
+ */
+:root {
+  --background: #faf7f2;
+  --foreground: #302c29;
+  --card: #ffffff;
+  --card-foreground: #302c29;
+  --popover: #ffffff;
+  --popover-foreground: #302c29;
+  --primary: #456454;
+  --primary-foreground: #ffffff;
+  --secondary: #f3e3df;
+  --secondary-foreground: #302c29;
+  --muted: #f3eee7;
+  --muted-foreground: #6b635c;
+  --accent: #f3e3df;
+  --accent-foreground: #302c29;
+  --destructive: #b42318;
+  --destructive-foreground: #ffffff;
+  /* Decorative borders (cards, dividers). */
+  --border: #e5ded5;
+  /* Form control borders need at least 3:1 contrast against card and background. */
+  --input: #8c8176;
+  --ring: #456454;
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@theme {
+  --font-sans:
+    'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+
+  /* Container max widths used by <Container size="...">: max-w-content-{size}. */
+  --container-content-sm: 40rem;
+  --container-content-md: 48rem;
+  --container-content-lg: 64rem;
+  --container-content-xl: 80rem;
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100dvh;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}

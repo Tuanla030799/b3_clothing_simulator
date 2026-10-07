@@ -1,0 +1,14 @@
+@import '@lituta/ui/styles.css';
+
+/*
+ * Design lettering font: Dancing Script 600 (SIL Open Font License 1.1), bundled locally via
+ * @fontsource with latin, latin-ext and vietnamese subsets. It belongs to the client only and is
+ * independent of the UI font.
+ */
+@import '@fontsource/dancing-script/600.css';
+
+@source '../';
+
+@theme {
+  --font-design: 'Dancing Script', cursive;
+}
