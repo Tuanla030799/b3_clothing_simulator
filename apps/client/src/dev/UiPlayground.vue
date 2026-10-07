@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /*
- * Development-only playground for @lituta/ui. Opened with /?playground during `npm run dev`;
+ * Development-only playground for @lituta/ui. Opened with /?playground during `yarn dev`;
  * never imported by the production entry (see src/main.ts).
  */
 import { computed, ref } from 'vue'

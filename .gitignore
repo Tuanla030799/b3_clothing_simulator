@@ -1,7 +1,25 @@
+# Dependencies (Yarn workspaces)
 node_modules/
+
+# Local Yarn cache and install artifacts
+.yarn/
+.pnp.*
+
+# Build output and caches
 dist/
-*.local
 .vite/
+*.tsbuildinfo
 coverage/
 .playwright-mcp/
+
+# Local environment files; keep example configuration versioned
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+
+# Logs and operating system files
 *.log
+.DS_Store
+Thumbs.db

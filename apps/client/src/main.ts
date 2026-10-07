@@ -3,7 +3,7 @@ import App from './App.vue'
 import './styles/main.css'
 
 async function bootstrap() {
-  // Development-only UI playground: open /?playground while running `npm run dev`.
+  // Development-only UI playground: open /?playground while running `yarn dev`.
   // import.meta.env.DEV is statically false in production builds, so this branch and the
   // playground chunk are removed from the bundle.
   if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('playground')) {

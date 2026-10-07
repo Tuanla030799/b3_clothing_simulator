@@ -11,24 +11,28 @@ Repository rules: [AGENTS.md](AGENTS.md). Component guide: [packages/ui/README.m
 
 ## Requirements and commands
 
-Node.js ≥ 20.19 (developed on 24.11) and npm. One `package-lock.json` at the root; do not use
-another package manager.
+Node.js ≥ 20.19 (developed on 24.11) and Yarn 3.8.7 (pinned in `package.json`).
+One `yarn.lock` at the root; do not use another package manager.
 
 ```bash
-npm install            # install all workspaces
-npm run dev            # client dev server (http://localhost:5173)
-npm run typecheck      # vue-tsc for every workspace
-npm run lint           # ESLint (Vue + TypeScript)
-npm run format:check   # Prettier check (npm run format to write)
-npm test               # Vitest in every workspace
-npm run build          # typecheck + production build of the client (apps/client/dist)
-npm run preview        # serve the production build
-npm run check          # all of the above in sequence
+corepack enable      # enable the pinned Yarn version
+yarn install         # install all workspaces
+yarn dev             # client dev server (http://localhost:5173)
+yarn typecheck       # vue-tsc for every workspace
+yarn lint            # ESLint (Vue + TypeScript)
+yarn format:check    # Prettier check (yarn format to write)
+yarn test            # Vitest in every workspace
+yarn build           # typecheck + production build of the client (apps/client/dist)
+yarn preview         # serve the production build
+yarn check           # all of the above in sequence
 ```
+
+Yarn uses `node_modules` via `.yarnrc.yml`. Commit `yarn.lock`; use
+`yarn install --immutable` for reproducible installs in CI. Local Yarn caches are ignored.
 
 ### UI playground (development only)
 
-Run `npm run dev` and open <http://localhost:5173/?playground>. It shows every common component
+Run `yarn dev` and open <http://localhost:5173/?playground>. It shows every common component
 and the states to verify (grid, buttons, image fallback, form wiring, select, dropdown…).
 It is loaded through a dynamic import guarded by `import.meta.env.DEV`, so it is not part of the
 production bundle and has no link in the customer UI. No router is used.
@@ -496,7 +500,7 @@ pixelRatio: 1 })` to a Blob. No DOM capture, screenshot or preview bitmap is use
 
 ### Browsers and tests used
 
-Automated: `npm test` (export readiness, lock, snapshot, errors, cleanup, size, file name, scene).
+Automated: `yarn test` (export readiness, lock, snapshot, errors, cleanup, size, file name, scene).
 Manually driven with Playwright (Chromium, desktop): real downloads at 1440 px; desktop/768 px
 (2× DPR)/375 px (3× DPR, mobile emulation with touch — **emulated, not a physical phone**) exports
 decoded with PIL; a set of 1, 5 and 10 items; two same-model shirts with different names, white and

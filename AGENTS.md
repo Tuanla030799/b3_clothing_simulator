@@ -13,7 +13,7 @@
 ## Stack and workspace boundaries
 
 - Use Vue 3 Composition API with `<script setup lang="ts">`, TypeScript strict, Vite, Tailwind CSS, and shadcn-vue.
-- Use npm workspaces with one root package-lock.json. Do not introduce another package manager or lockfile.
+- Use Yarn workspaces with one root yarn.lock and the packageManager version pinned in package.json. Do not introduce another package manager or lockfile.
 - Declare dependencies in the workspace that uses them; avoid duplicate Vue runtimes.
 - Keep client and future admin as separate applications in the same repository.
 - Build only the client and shared UI in Phase 1. Do not scaffold an empty admin app or backend.

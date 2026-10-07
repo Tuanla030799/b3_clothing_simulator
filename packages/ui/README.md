@@ -38,7 +38,7 @@ Public types (`ButtonVariant`, `SelectOption`, `DropdownItem`, `ColSize`, `RowGu
 exported from [types.ts](src/components/common/types.ts). `cn()` (clsx + tailwind-merge) is also
 exported. Everything in `src/components/ui` (shadcn-vue primitives) is internal.
 
-Development playground with every state: run `npm run dev` and open `/?playground`.
+Development playground with every state: run `yarn dev` and open `/?playground`.
 
 ## Layout
 

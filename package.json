@@ -10,16 +10,16 @@
     "node": ">=20.19"
   },
   "scripts": {
-    "dev": "npm run dev -w @lituta/client",
-    "build": "npm run build -w @lituta/client",
-    "preview": "npm run preview -w @lituta/client",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev": "yarn workspace @lituta/client dev",
+    "build": "yarn workspace @lituta/client build",
+    "preview": "yarn workspace @lituta/client preview",
+    "typecheck": "yarn workspace @lituta/ui typecheck && yarn workspace @lituta/client typecheck",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "test": "npm run test --workspaces --if-present",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build"
+    "test": "yarn workspace @lituta/ui test && yarn workspace @lituta/client test",
+    "check": "yarn typecheck && yarn lint && yarn format:check && yarn test && yarn build"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -29,6 +29,8 @@
     "globals": "^17.13.0",
     "prettier": "^3.9.9",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.71.1"
-  }
+    "typescript-eslint": "^8.71.1",
+    "vue-eslint-parser": "^10.3.0"
+  },
+  "packageManager": "yarn@3.8.7"
 }

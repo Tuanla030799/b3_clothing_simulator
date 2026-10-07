@@ -1,6 +1,8 @@
 node_modules
 dist
 coverage
-package-lock.json
+yarn.lock
+.yarn
+.pnp.*
 .claude
 .playwright-mcp
