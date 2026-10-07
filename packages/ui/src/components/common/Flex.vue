@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import type { FlexAlign, FlexJustify, FlexGap } from './types'
+import type { FlexAlign, FlexElement, FlexJustify, FlexGap } from './types'
 import { computed, type CSSProperties } from 'vue'
 import { cn } from '../../lib/utils'
 
 const props = withDefaults(
   defineProps<{
+    /** Rendered element; use ul/ol/li/nav for lists and landmarks. Default "div". */
+    as?: FlexElement
     vertical?: boolean
     align?: FlexAlign
     justify?: FlexJustify
     gap?: FlexGap
     wrap?: boolean
   }>(),
-  { vertical: false, align: 'stretch', justify: 'start', gap: 0, wrap: false },
+  { as: 'div', vertical: false, align: 'stretch', justify: 'start', gap: 0, wrap: false },
 )
 
 const alignClasses: Record<FlexAlign, string> = {
@@ -55,7 +57,7 @@ const style = computed<CSSProperties | undefined>(() =>
 </script>
 
 <template>
-  <div :class="classes" :style="style">
+  <component :is="as" :class="classes" :style="style">
     <slot />
-  </div>
+  </component>
 </template>

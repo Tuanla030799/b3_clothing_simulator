@@ -28,6 +28,7 @@ selectors or `!important`; add the smallest shared variant instead.
 | Row / Col  | 24-column responsive grid               | [Row.vue](src/components/common/Row.vue), [Col.vue](src/components/common/Col.vue) |
 | Typography | Text styles independent of HTML element | [Typography.vue](src/components/common/Typography.vue)                             |
 | Button     | Actions                                 | [Button.vue](src/components/common/Button.vue)                                     |
+| Link       | Navigation links (`<a>` or router link) | [Link.vue](src/components/common/Link.vue)                                         |
 | Image      | DOM images with loading/fallback states | [Image.vue](src/components/common/Image.vue)                                       |
 | FormField  | Label / description / error wiring      | [FormField.vue](src/components/common/FormField.vue)                               |
 | Select     | Choose **one form value**               | [Select.vue](src/components/common/Select.vue)                                     |
@@ -58,6 +59,7 @@ through `class`. Slot: default.
 
 | Prop     | Type                                                                                  | Default     |
 | -------- | ------------------------------------------------------------------------------------- | ----------- |
+| as       | `'div' \| 'span' \| 'section' \| 'nav' \| 'ul' \| 'ol' \| 'li'`                       | `'div'`     |
 | vertical | `boolean`                                                                             | `false`     |
 | align    | `'start' \| 'center' \| 'end' \| 'stretch' \| 'baseline'`                             | `'stretch'` |
 | justify  | `'start' \| 'center' \| 'end' \| 'space-between' \| 'space-around' \| 'space-evenly'` | `'start'`   |
@@ -66,8 +68,17 @@ through `class`. Slot: default.
 
 Gap presets: small 8px, middle 16px, large 24px; a number is pixels. Slot: default.
 
+Use Flex instead of `flex …` utility classes. `as` picks the element so lists and landmarks keep
+their native semantics: `<Flex as="ul">` renders a `<ul>` whose children are plain `<li>`; use
+`as="li"` when a list item itself needs flex layout. Native attributes (`aria-label`, `role`…) and
+`class` go to that element.
+
 ```vue
 <Flex align="center" justify="space-between" gap="middle">…</Flex>
+
+<Flex as="ul" wrap gap="small" aria-label="Tags">
+  <li>…</li>
+</Flex>
 ```
 
 ### Row / Col
@@ -152,6 +163,34 @@ Event: `click(event: MouseEvent)` — not emitted while disabled or loading.
   <template #icon><Save /></template>
   Lưu
 </Button>
+```
+
+## Link
+
+| Prop          | Type                                      | Default                |
+| ------------- | ----------------------------------------- | ---------------------- |
+| as            | `string \| Component` (e.g. `RouterLink`) | `'a'`                  |
+| variant       | `'text' \| 'nav' \| 'inverse' \| 'plain'` | `'text'`               |
+| active        | `boolean`                                 | `false`                |
+| external      | `boolean`                                 | `false`                |
+| externalLabel | `string`                                  | `'(mở trong tab mới)'` |
+
+Slot: default. Use Link instead of a bare `<a>`; it carries the focus ring and the variant style.
+
+- `as` renders a native `<a>` by default (`href`, `download`… are forwarded). Pass a router link
+  component to navigate without a page load; its own props (`to`) are passed through as attributes,
+  so this package has no router dependency.
+- `variant`: `text` inline link; `nav` menu item (padding, hover, highlighted when `active`);
+  `inverse` for primary-colored backgrounds; `plain` no visual style (logos, icon links — set color
+  and layout with `class`).
+- `active` sets `aria-current="page"`.
+- `external` adds `target="_blank"`, `rel="noopener noreferrer"` and a visually hidden notice.
+- Link is for navigation. Actions that change state use Button; Button has no navigation API.
+
+```vue
+<Link href="/gioi-thieu">Giới thiệu</Link>
+<Link :as="RouterLink" to="/san-pham" variant="nav" :active="isActive">Sản phẩm</Link>
+<Link href="https://example.com" external variant="inverse">Facebook</Link>
 ```
 
 ## Image

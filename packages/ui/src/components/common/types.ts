@@ -6,6 +6,9 @@ export type ButtonHtmlType = 'button' | 'submit' | 'reset'
 
 export type ContainerSize = 'sm' | 'md' | 'lg' | 'xl' | 'full'
 
+/** Element rendered by Flex. List elements keep their native semantics. */
+export type FlexElement = 'div' | 'span' | 'section' | 'nav' | 'ul' | 'ol' | 'li'
+
 export type FlexAlign = 'start' | 'center' | 'end' | 'stretch' | 'baseline'
 
 export type FlexJustify =
@@ -58,3 +61,5 @@ export interface DropdownItem {
 }
 
 export type { ColBreakpoint, ColSize, RowGutter } from './grid'
+
+export type LinkVariant = 'text' | 'nav' | 'inverse' | 'plain'

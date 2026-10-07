@@ -14,6 +14,7 @@ import {
   Flex,
   FormField,
   Image,
+  Link,
   Row,
   Select,
   Typography,
@@ -145,6 +146,30 @@ const lastAction = ref('—')
           </Flex>
           <Flex wrap gap="large" justify="space-between" class="max-w-md">
             <span v-for="n in 7" :key="n" class="rounded bg-muted px-4 py-1">wrap {{ n }}</span>
+          </Flex>
+        </Flex>
+      </section>
+
+      <!-- Link -->
+      <section class="rounded-xl border bg-card p-4" aria-labelledby="pg-link">
+        <Typography id="pg-link" as="h2" variant="heading" class="mb-3">Link</Typography>
+        <Flex vertical gap="middle">
+          <Flex wrap gap="middle" align="center">
+            <Link href="#pg-link">Inline (text)</Link>
+            <Link variant="nav" href="#pg-link">Nav</Link>
+            <Link variant="nav" active href="#pg-link">Nav active</Link>
+            <Link href="https://example.com" external>External</Link>
+            <Link variant="plain" href="#pg-link" class="font-semibold">Plain</Link>
+          </Flex>
+          <Flex wrap gap="middle" align="center" class="rounded-md bg-primary p-3">
+            <Link variant="inverse" href="#pg-link">Inverse</Link>
+            <Link variant="inverse" href="https://example.com" external>Inverse external</Link>
+          </Flex>
+          <!-- Flex as a list: native li children keep list semantics -->
+          <Flex as="ul" gap="small" wrap aria-label="Flex as ul">
+            <li class="rounded bg-secondary px-3 py-1">li 1</li>
+            <li class="rounded bg-secondary px-3 py-1">li 2</li>
+            <li class="rounded bg-secondary px-3 py-1">li 3</li>
           </Flex>
         </Flex>
       </section>
