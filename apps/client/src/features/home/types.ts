@@ -26,3 +26,23 @@ export interface SeasonalCollection {
   /** Router path of the collection page. */
   to: string
 }
+
+export interface ProcessStep {
+  id: string
+  title: string
+  description: string
+  /** File name in assets/home; optional, a placeholder is shown when missing. */
+  image?: string
+}
+
+export interface Review {
+  id: string
+  author: string
+  /** Whole number from 1 to 5. */
+  rating: number
+  text: string
+  /** Product the review is about, shown as small print. */
+  product?: string
+  /** True for placeholder content: the card is labelled "Dữ liệu mẫu" until real data replaces it. */
+  isSample: boolean
+}

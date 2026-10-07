@@ -2,8 +2,9 @@
 import CommitmentsBar from '../features/home/components/CommitmentsBar.vue'
 import FeaturedProducts from '../features/home/components/FeaturedProducts.vue'
 import HomeBanner from '../features/home/components/HomeBanner.vue'
+import ProcessSection from '../features/home/components/ProcessSection.vue'
+import ReviewsSection from '../features/home/components/ReviewsSection.vue'
 import SeasonalCollections from '../features/home/components/SeasonalCollections.vue'
-// Process and reviews sections come in phase H4 of docs/homepage-plan.md.
 </script>
 
 <template>
@@ -12,4 +13,6 @@ import SeasonalCollections from '../features/home/components/SeasonalCollections
   <CommitmentsBar />
   <FeaturedProducts />
   <SeasonalCollections />
+  <ProcessSection />
+  <ReviewsSection />
 </template>

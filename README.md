@@ -8,7 +8,7 @@ whole set arranged on a background → download it as a PNG. The selection and d
 the page: **reloading the page loses the set**. See [Not implemented yet](#not-implemented-yet).
 
 Around the tool there is a site shell (announcement bar, header, footer) and a home page being built
-in phases; see [docs/homepage-plan.md](docs/homepage-plan.md) (**H1–H3 done**).
+in phases; see [docs/homepage-plan.md](docs/homepage-plan.md) (**H1–H4 done**).
 
 Repository rules: [AGENTS.md](AGENTS.md). Component guide: [packages/ui/README.md](packages/ui/README.md).
 
@@ -544,7 +544,7 @@ Code: [router.ts](apps/client/src/router.ts), [features/site](apps/client/src/fe
 - Site components use the shared `Flex` (`as="ul"` for lists, native `<li>` children) and `Link`
   (`as="RouterLink"` for routes, `external` for outside links) instead of `flex` classes and bare
   `<a>`; see the component guide.
-- Home page sections so far: banner, commitments bar, featured products and seasonal collections (below). Process and reviews come in phase H4.
+- Home page sections so far: banner, commitments bar, featured products, seasonal collections, process and reviews (below). Polishing is phase H5.
 
 ### Home banner and commitments (phase H2)
 
@@ -582,6 +582,22 @@ Code: `features/home/components/FeaturedProducts.vue`, `SeasonalCollections.vue`
   in `assets/home/`) or a placeholder with an icon; the name sits on a light strip so it stays
   readable over any image. 2 columns on phones, 3 from 768 px, 6 from 1024 px.
 - Section titles are `h2` with `aria-labelledby` on the section.
+
+### Process and reviews (phase H4)
+
+Code: `features/home/components/ProcessSection.vue`, `ReviewsSection.vue`; data in
+`features/home/data/homeData.ts` (`processSteps`, `reviews`).
+
+- **Process:** 4 steps (choose product → choose color and size → design if wanted → confirm the
+  order) as an ordered list: image (file `process-1`…`process-4` in `assets/home/`, otherwise an
+  icon placeholder), number, title and description. One button goes to `/thiet-ke`. The steps
+  describe the intended buying flow; color/size choice and ordering are not built yet, so no step
+  has its own action. Wording is to be confirmed.
+- **Reviews:** 3 mock cards with a star rating (`role="img"`, “N trên 5 sao”), text, author and
+  product. A review with `isSample: true` shows a **“Dữ liệu mẫu”** tag, and the section shows a note
+  while any sample review exists, so real data (with `isSample: false`) removes the labels without
+  code changes. No average rating or review count is shown because no real numbers exist.
+- Layout: steps 1 / 2 / 4 columns (phone / 640 px / 1024 px), reviews 1 / 3 columns (phone / 768 px).
 
 ## Not implemented yet
 
