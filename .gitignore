@@ -23,3 +23,6 @@ coverage/
 *.log
 .DS_Store
 Thumbs.db
+
+# Reference images used only for local mockups (never commit or deploy these)
+apps/client/src/assets/home/_reference/

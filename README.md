@@ -8,7 +8,7 @@ whole set arranged on a background → download it as a PNG. The selection and d
 the page: **reloading the page loses the set**. See [Not implemented yet](#not-implemented-yet).
 
 Around the tool there is a site shell (announcement bar, header, footer) and a home page being built
-in phases; see [docs/homepage-plan.md](docs/homepage-plan.md) (**H1 done**).
+in phases; see [docs/homepage-plan.md](docs/homepage-plan.md) (**H1 and H2 done**).
 
 Repository rules: [AGENTS.md](AGENTS.md). Component guide: [packages/ui/README.md](packages/ui/README.md).
 
@@ -544,7 +544,28 @@ Code: [router.ts](apps/client/src/router.ts), [features/site](apps/client/src/fe
 - Site components use the shared `Flex` (`as="ul"` for lists, native `<li>` children) and `Link`
   (`as="RouterLink"` for routes, `external` for outside links) instead of `flex` classes and bare
   `<a>`; see the component guide.
-- The home page content is temporary until phases H2–H4.
+- Home page sections so far: banner and commitments bar (below). More sections come in phases H3–H4.
+
+### Home banner and commitments (phase H2)
+
+Code: [features/home](apps/client/src/features/home) (`HomeBanner.vue`, `CommitmentsBar.vue`,
+`data/homeData.ts`, `data/assets.ts`).
+
+- **Banner** uses Swiper (`swiper/vue`, only the `A11y` and `Keyboard` modules plus the base CSS).
+  3 mock slides with a text card (title, description, button) over the image. Auto-advance
+  (6 s) uses our own timer: off when the visitor prefers reduced motion, held while the banner is
+  hovered or contains focus, restarted after every slide change, and always stoppable with the
+  visible pause button. Arrows (from 640 px), dots, swipe and the arrow keys also navigate. Slides
+  that are not shown are `inert`, so their buttons are not reachable with Tab.
+- **Commitments** are 4 fixed items written in code (not backend data), without delivery or
+  shipping claims; the wording is to be confirmed.
+- **Images** are found by file name without extension in `apps/client/src/assets/home/`
+  (`banner-1`, `banner-2`, `banner-3`; png/jpg/jpeg/webp/avif). A missing file shows a placeholder.
+  A file directly in `assets/home/` overrides one of the same name in `assets/home/_reference/`.
+- **Reference images:** `assets/home/_reference/` is **git-ignored** and holds third-party images
+  used only for local mockups. They are never committed, so CI and the GitHub Pages deploy build
+  with placeholders. Before the site goes public, put your own (or licensed) images in
+  `assets/home/` or serve them from the backend.
 
 ## Not implemented yet
 
