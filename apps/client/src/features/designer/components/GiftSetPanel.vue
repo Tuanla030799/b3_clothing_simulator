@@ -56,10 +56,13 @@ async function remove(instanceId: string, index: number) {
         class="grid grid-cols-1 gap-2 sm:grid-cols-2"
         aria-label="Các món trong bộ"
       >
-        <li
+        <Flex
           v-for="(entry, index) in selection.entries.value"
           :key="entry.item.instanceId"
-          class="flex items-center gap-1 rounded-lg border p-1.5"
+          as="li"
+          align="center"
+          :gap="4"
+          class="rounded-lg border p-1.5"
           :class="
             entry.item.instanceId === selection.activeInstanceId.value
               ? 'border-primary bg-secondary/40'
@@ -69,31 +72,36 @@ async function remove(instanceId: string, index: number) {
           <!-- Card body selects the item; the remove button is a separate sibling control. -->
           <button
             type="button"
-            class="flex min-w-0 flex-1 items-center gap-3 rounded-md p-1 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            class="min-w-0 flex-1 rounded-md p-1 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             :disabled="selection.lock.locked.value"
             :aria-current="entry.item.instanceId === selection.activeInstanceId.value || undefined"
             @click="selection.select(entry.item.instanceId)"
           >
-            <Image
-              :src="entry.product.image.src"
-              alt=""
-              :width="entry.product.image.width"
-              :height="entry.product.image.height"
-              class="aspect-4/3 w-14 shrink-0 rounded-md bg-muted"
-            />
-            <span class="flex min-w-0 flex-col">
-              <span class="text-xs text-muted-foreground">
-                Món {{ entry.position }} · {{ categoryName(entry.product.categoryId) }}
-              </span>
-              <span class="text-sm font-medium">{{ entry.product.name }}</span>
-              <span
-                v-if="entry.item.instanceId === selection.activeInstanceId.value"
-                class="flex items-center gap-1 text-xs font-semibold text-primary"
-              >
-                <Check class="size-3.5" aria-hidden="true" />
-                Đang chỉnh
-              </span>
-            </span>
+            <Flex align="center" :gap="12">
+              <Image
+                :src="entry.product.image.src"
+                alt=""
+                :width="entry.product.image.width"
+                :height="entry.product.image.height"
+                class="aspect-4/3 w-14 shrink-0 rounded-md bg-muted"
+              />
+              <Flex as="span" vertical class="min-w-0">
+                <span class="text-xs text-muted-foreground">
+                  Món {{ entry.position }} · {{ categoryName(entry.product.categoryId) }}
+                </span>
+                <span class="text-sm font-medium">{{ entry.product.name }}</span>
+                <Flex
+                  v-if="entry.item.instanceId === selection.activeInstanceId.value"
+                  as="span"
+                  align="center"
+                  :gap="4"
+                  class="text-xs font-semibold text-primary"
+                >
+                  <Check class="size-3.5" aria-hidden="true" />
+                  Đang chỉnh
+                </Flex>
+              </Flex>
+            </Flex>
           </button>
           <Button
             data-remove
@@ -105,7 +113,7 @@ async function remove(instanceId: string, index: number) {
           >
             <template #icon><Trash2 /></template>
           </Button>
-        </li>
+        </Flex>
       </ul>
     </Flex>
   </section>

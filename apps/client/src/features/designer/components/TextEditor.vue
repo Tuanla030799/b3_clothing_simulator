@@ -116,8 +116,11 @@ const isSelected = computed(() => {
             @click="pickColor(color.id)"
           >
             <template #icon>
-              <span
-                class="flex size-4 items-center justify-center rounded-full border border-input"
+              <Flex
+                as="span"
+                align="center"
+                justify="center"
+                class="size-4 rounded-full border border-input"
                 :style="{ backgroundColor: color.value }"
               >
                 <Check
@@ -125,7 +128,7 @@ const isSelected = computed(() => {
                   class="size-3"
                   :class="color.id === 'white' ? 'text-foreground' : 'text-card'"
                 />
-              </span>
+              </Flex>
             </template>
             {{ color.name }}
           </Button>

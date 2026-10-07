@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RotateCw } from '@lucide/vue'
-import { Button, Typography } from '@lituta/ui'
+import { Button, Flex, Typography } from '@lituta/ui'
 import { exportErrorMessages } from '../exportImage'
 import { injectComposition } from '../useComposition'
 import { exportBlockMessages, injectExport } from '../useExport'
@@ -26,7 +26,7 @@ const retryable = computed(() => {
 </script>
 
 <template>
-  <div id="export-status" class="flex flex-col gap-1" data-testid="export-status">
+  <Flex id="export-status" vertical :gap="4" data-testid="export-status">
     <p
       v-if="exporter.error.value"
       class="text-sm font-medium text-destructive"
@@ -39,7 +39,7 @@ const retryable = computed(() => {
       {{ exporter.notice.value }}
     </p>
     <Typography v-if="reason" variant="caption" role="status">{{ reason }}</Typography>
-    <div v-if="exporter.error.value || retryable" class="flex flex-wrap gap-2">
+    <Flex v-if="exporter.error.value || retryable" wrap gap="small">
       <Button
         v-if="exporter.error.value"
         size="small"
@@ -53,6 +53,6 @@ const retryable = computed(() => {
       <Button v-if="retryable" size="small" variant="default" @click="composition.retry()">
         Tải lại tài nguyên
       </Button>
-    </div>
-  </div>
+    </Flex>
+  </Flex>
 </template>

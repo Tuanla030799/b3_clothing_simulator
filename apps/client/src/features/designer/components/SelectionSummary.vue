@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Flex } from '@lituta/ui'
 import { categories, selectionRules } from '../data/catalog'
 import type { CategoryId } from '../types'
 
@@ -26,7 +27,7 @@ const counters = computed(() => [
 </script>
 
 <template>
-  <ul class="flex flex-wrap gap-2" aria-label="Số lượng đã chọn">
+  <Flex as="ul" wrap gap="small" aria-label="Số lượng đã chọn">
     <li
       v-for="counter in counters"
       :key="counter.key"
@@ -35,5 +36,5 @@ const counters = computed(() => [
       {{ counter.label }}
       <span class="font-semibold tabular-nums">{{ counter.count }}/{{ counter.max }}</span>
     </li>
-  </ul>
+  </Flex>
 </template>

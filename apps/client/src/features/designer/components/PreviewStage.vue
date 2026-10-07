@@ -86,10 +86,10 @@ const background = computed(() => backgrounds.find((entry) => entry.id === DEFAU
             class="absolute inset-0 size-full bg-card"
           >
             <template #fallback>
-              <span class="flex flex-col items-center gap-2 p-4 text-center">
+              <Flex as="span" vertical align="center" gap="small" class="p-4 text-center">
                 <Shirt class="size-8" aria-hidden="true" />
                 <span class="text-sm font-medium text-foreground">{{ active.product.name }}</span>
-              </span>
+              </Flex>
             </template>
           </Image>
         </template>
@@ -99,7 +99,7 @@ const background = computed(() => backgrounds.find((entry) => entry.id === DEFAU
               <span class="size-full bg-linear-to-br from-secondary via-background to-muted" />
             </template>
           </Image>
-          <div class="absolute inset-0 flex items-center justify-center p-4">
+          <Flex align="center" justify="center" class="absolute inset-0 p-4">
             <div class="rounded-xl bg-card/85 shadow-sm">
               <EmptyState
                 title="Bộ quà đang trống"
@@ -108,7 +108,7 @@ const background = computed(() => backgrounds.find((entry) => entry.id === DEFAU
                 <template #icon><Shirt /></template>
               </EmptyState>
             </div>
-          </div>
+          </Flex>
         </template>
       </div>
 

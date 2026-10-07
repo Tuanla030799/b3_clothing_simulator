@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Flex } from '@lituta/ui'
+
 defineProps<{
   /** Zero-based index of the current step. */
   current: number
@@ -9,15 +11,21 @@ const steps = ['Chọn đồ', 'Cá nhân hóa', 'Xem cả bộ']
 
 <template>
   <nav aria-label="Các bước thiết kế">
-    <ol class="flex items-center gap-2 sm:gap-3">
-      <li
+    <Flex as="ol" align="center" gap="small">
+      <Flex
         v-for="(step, index) in steps"
         :key="step"
-        class="flex min-w-0 items-center gap-2 sm:gap-3"
+        as="li"
+        align="center"
+        gap="small"
+        class="min-w-0"
         :aria-current="index === current ? 'step' : undefined"
       >
-        <span
-          class="flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
+        <Flex
+          as="span"
+          align="center"
+          justify="center"
+          class="size-6 shrink-0 rounded-full text-xs font-semibold"
           :class="
             index === current
               ? 'bg-primary text-primary-foreground'
@@ -26,7 +34,7 @@ const steps = ['Chọn đồ', 'Cá nhân hóa', 'Xem cả bộ']
           aria-hidden="true"
         >
           {{ index + 1 }}
-        </span>
+        </Flex>
         <span
           class="truncate text-sm"
           :class="index === current ? 'font-semibold text-foreground' : 'text-muted-foreground'"
@@ -38,7 +46,7 @@ const steps = ['Chọn đồ', 'Cá nhân hóa', 'Xem cả bộ']
           class="hidden h-px w-6 bg-border sm:block lg:w-10"
           aria-hidden="true"
         />
-      </li>
-    </ol>
+      </Flex>
+    </Flex>
   </nav>
 </template>

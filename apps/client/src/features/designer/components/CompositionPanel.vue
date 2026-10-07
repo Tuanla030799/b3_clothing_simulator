@@ -80,31 +80,36 @@ function designSummary(instanceId: string, zoneIds: string[]) {
 
       <div>
         <Typography as="h3" variant="body" weight="semibold">Nền</Typography>
-        <ul
+        <Flex
           v-if="composition.backgrounds.length > 1"
-          class="mt-2 flex flex-wrap gap-2"
+          as="ul"
+          wrap
+          gap="small"
+          class="mt-2"
           aria-label="Chọn nền"
         >
           <li v-for="bg in composition.backgrounds" :key="bg.id">
             <!-- Selectable thumbnail tile (Button sizes cannot hold an image). -->
             <button
               type="button"
-              class="flex w-24 flex-col items-center gap-1 rounded-md border p-1 text-xs hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-pressed:border-primary aria-pressed:bg-secondary"
+              class="w-24 rounded-md border p-1 text-xs hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-pressed:border-primary aria-pressed:bg-secondary"
               :disabled="selection.lock.locked.value"
               :aria-pressed="composition.background.value?.id === bg.id"
               :aria-busy="composition.pendingBackgroundId.value === bg.id || undefined"
               @click="composition.selectBackground(bg.id)"
             >
-              <Image
-                :src="bg.image.src"
-                alt=""
-                fit="cover"
-                class="aspect-video w-full rounded-sm"
-              />
-              {{ bg.name }}
+              <Flex vertical align="center" :gap="4">
+                <Image
+                  :src="bg.image.src"
+                  alt=""
+                  fit="cover"
+                  class="aspect-video w-full rounded-sm"
+                />
+                {{ bg.name }}
+              </Flex>
             </button>
           </li>
-        </ul>
+        </Flex>
         <Typography v-else variant="caption" class="mt-1">
           {{ composition.backgroundEntry.value?.name ?? 'Nền trơn' }}
         </Typography>
@@ -128,11 +133,14 @@ function designSummary(instanceId: string, zoneIds: string[]) {
 
       <div v-if="selection.entries.value.length">
         <Typography as="h3" variant="body" weight="semibold">Các món trong bộ</Typography>
-        <ul class="mt-2 flex flex-col gap-2">
-          <li
+        <Flex as="ul" vertical gap="small" class="mt-2">
+          <Flex
             v-for="entry in selection.entries.value"
             :key="entry.item.instanceId"
-            class="flex items-center gap-2 rounded-md border p-2"
+            as="li"
+            align="center"
+            gap="small"
+            class="rounded-md border p-2"
           >
             <div class="min-w-0 flex-1">
               <Typography variant="body" weight="medium">
@@ -157,8 +165,8 @@ function designSummary(instanceId: string, zoneIds: string[]) {
               <template #icon><Pencil /></template>
               Chỉnh
             </Button>
-          </li>
-        </ul>
+          </Flex>
+        </Flex>
       </div>
     </Flex>
   </section>

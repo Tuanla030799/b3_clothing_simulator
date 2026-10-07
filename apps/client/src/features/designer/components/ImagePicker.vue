@@ -65,7 +65,7 @@ const limitsText = `PNG, JPEG hoặc WebP · tối đa ${UPLOAD_LIMITS.maxBytes 
         Hình / logo
       </Typography>
 
-      <ul v-if="designPresets.length" class="flex flex-wrap gap-2" aria-label="Hình có sẵn">
+      <Flex v-if="designPresets.length" as="ul" wrap gap="small" aria-label="Hình có sẵn">
         <li v-for="preset in designPresets" :key="preset.id">
           <!-- Selectable image tile (Button sizes cannot hold a thumbnail). -->
           <button
@@ -79,7 +79,7 @@ const limitsText = `PNG, JPEG hoặc WebP · tối đa ${UPLOAD_LIMITS.maxBytes 
             <Image :src="preset.image.src" alt="" class="aspect-4/3 w-16 rounded-sm" />
           </button>
         </li>
-      </ul>
+      </Flex>
 
       <input
         ref="file"

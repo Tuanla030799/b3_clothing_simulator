@@ -33,7 +33,7 @@ const letteringSamples = ['Nguyễn Minh', 'Bảo Ngọc', 'Đậu']
         </EmptyState>
         <div class="rounded-lg bg-muted p-4">
           <Typography as="h3" variant="caption" weight="medium">Mẫu kiểu chữ thêu</Typography>
-          <ul class="mt-2 flex flex-col gap-1">
+          <Flex as="ul" vertical :gap="4" class="mt-2">
             <li
               v-for="sample in letteringSamples"
               :key="sample"
@@ -41,7 +41,7 @@ const letteringSamples = ['Nguyễn Minh', 'Bảo Ngọc', 'Đậu']
             >
               {{ sample }}
             </li>
-          </ul>
+          </Flex>
         </div>
       </template>
 
