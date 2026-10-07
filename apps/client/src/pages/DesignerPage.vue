@@ -1,25 +1,40 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Download } from '@lucide/vue'
-import { Button, Col, Container, Flex, Row, Typography } from '@lituta/ui'
+import { Button, Container, Flex, Typography } from '@lituta/ui'
 import DesignerSteps from '../features/designer/components/DesignerSteps.vue'
 import DesignPanel from '../features/designer/components/DesignPanel.vue'
-import LayoutPanel from '../features/designer/components/LayoutPanel.vue'
+import GiftSetPanel from '../features/designer/components/GiftSetPanel.vue'
 import MobilePanelTabs from '../features/designer/components/MobilePanelTabs.vue'
 import PreviewStage from '../features/designer/components/PreviewStage.vue'
 import ProductPanel from '../features/designer/components/ProductPanel.vue'
+import { provideDesigns, useDesigns } from '../features/designer/useDesigns'
+import { provideSelection, useSelection } from '../features/designer/useSelection'
+
+// The page owns the gift-set and design state for the session; every panel reads it.
+const selection = useSelection()
+provideSelection(selection)
+provideDesigns(useDesigns(selection))
 
 type PanelId = 'products' | 'design' | 'layout'
 
-const panelTabs: { id: PanelId; label: string; controls: string }[] = [
+const panelTabs = computed(() => [
   { id: 'products', label: 'Sản phẩm', controls: 'designer-panel-products' },
   { id: 'design', label: 'Thiết kế', controls: 'designer-panel-design' },
-  { id: 'layout', label: 'Bố cục', controls: 'designer-panel-layout' },
-]
+  {
+    id: 'layout',
+    label: `Bố cục (${selection.items.value.length})`,
+    controls: 'designer-panel-layout',
+  },
+])
 
-// Mobile shows one panel at a time below the preview; from lg every panel has its own column.
+/*
+ * Mobile: preview, tabs, then the active panel (inactive panels are hidden but stay mounted).
+ * lg+: products | preview over the gift set | personalization. Row/Col cannot place one column
+ * under another while side columns span both rows, so this area layout uses CSS grid.
+ */
 const activePanel = ref<PanelId>('products')
-const mobileSpan = (id: PanelId) => (activePanel.value === id ? 24 : 0)
+const mobileVisibility = (id: PanelId) => (activePanel.value === id ? '' : 'max-lg:hidden')
 </script>
 
 <template>
@@ -41,35 +56,41 @@ const mobileSpan = (id: PanelId) => (activePanel.value === id ? 24 : 0)
         <Flex vertical gap="middle">
           <DesignerSteps :current="0" />
 
-          <Row :gutter="[24, 16]">
-            <Col :xs="24" :lg="12" class="lg:order-2">
-              <div class="lg:sticky lg:top-6">
-                <PreviewStage />
-              </div>
-            </Col>
+          <div
+            class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:gap-6"
+          >
+            <div class="lg:col-start-2 lg:row-start-1">
+              <PreviewStage />
+            </div>
 
-            <Col :xs="24" :lg="0">
+            <div class="lg:hidden">
               <MobilePanelTabs v-model="activePanel" :tabs="panelTabs" />
-            </Col>
+            </div>
 
-            <Col
+            <div
               id="designer-panel-products"
-              :xs="mobileSpan('products')"
-              :lg="6"
-              class="lg:order-1"
+              class="lg:col-start-1 lg:row-span-2 lg:row-start-1"
+              :class="mobileVisibility('products')"
             >
               <ProductPanel />
-            </Col>
+            </div>
 
-            <Col id="designer-panel-design" :xs="mobileSpan('design')" :lg="6" class="lg:order-3">
+            <div
+              id="designer-panel-layout"
+              class="lg:col-start-2 lg:row-start-2"
+              :class="mobileVisibility('layout')"
+            >
+              <GiftSetPanel @browse="activePanel = 'products'" />
+            </div>
+
+            <div
+              id="designer-panel-design"
+              class="lg:col-start-3 lg:row-span-2 lg:row-start-1"
+              :class="mobileVisibility('design')"
+            >
               <DesignPanel />
-            </Col>
-
-            <!-- On large screens the arrangement lives in the central preview. -->
-            <Col id="designer-panel-layout" :xs="mobileSpan('layout')" :lg="0">
-              <LayoutPanel @browse="activePanel = 'products'" />
-            </Col>
-          </Row>
+            </div>
+          </div>
         </Flex>
       </Container>
     </main>
