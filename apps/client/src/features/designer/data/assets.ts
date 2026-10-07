@@ -3,8 +3,8 @@ import type { AssetImage } from '../types'
 /*
  * Asset files are discovered at build time, so a missing file never becomes a broken import or
  * request. Naming convention: <entity id>.<png|webp|jpg|jpeg|avif>. File names are normalized to
- * ids (lower case, spaces/underscores → "-"), so products/Bodysuit_dai_tay.jpeg resolves the
- * product id "bodysuit-dai-tay".
+ * ids (lower case, spaces/underscores → "-"), so products/suit_2.png resolves the
+ * product id "suit-2".
  */
 type AssetMap = Record<string, string>
 
