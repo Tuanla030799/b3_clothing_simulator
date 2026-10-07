@@ -74,8 +74,16 @@ const defaultDeps = (): DesignDeps => ({
 })
 
 /** Result of an async edit. 'stale' = a newer edit or a removal superseded it; nothing changed. */
-export type TextResult = 'ok' | 'cleared' | 'stale' | 'font-error' | 'too-long' | 'no-image'
-export type ImageResult = 'ok' | 'stale' | 'no-image' | UploadError
+export type TextResult =
+  | 'ok'
+  | 'cleared'
+  | 'stale'
+  | 'font-error'
+  | 'too-long'
+  | 'no-image'
+  /** Refused because an image is being exported. */
+  | 'locked'
+export type ImageResult = 'ok' | 'stale' | 'no-image' | 'locked' | UploadError
 
 export interface ActiveLayer {
   instanceId: string
@@ -102,10 +110,18 @@ export function useDesigns(selection: Selection, overrides: Partial<DesignDeps> 
   // Runtime resources.
   const uploads = new Map<string, { url: string; image: DecodedImage }>()
   const presetImages = new Map<string, Promise<DecodedImage>>()
-  const loadedPresets = new Map<string, DecodedImage>()
+  const loadedPresets = shallowReactive(new Map<string, DecodedImage>())
+  const presetErrors = shallowReactive(new Set<string>())
+  // Lettering font readiness per text content (unicode-range subsets differ per text).
+  const fontStates = shallowReactive(new Map<string, 'loading' | 'ready' | 'error'>())
   const productImages = shallowReactive(new Map<string, ProductImageState>())
   const productImageRequests = new Map<string, Promise<DecodedImage | null>>()
   const pendingImages = shallowReactive(new Set<string>())
+  // Text edits being processed, and edits refused (too long, font error…) whose draft the customer
+  // still sees: neither may be exported as if the stored (older) text were final.
+  const pendingTexts = shallowReactive(new Set<string>())
+  const invalidTexts = shallowReactive(new Map<string, { content: string; result: TextResult }>())
+  const lock = selection.lock
   const tokens = new Map<string, number>()
   const textLayouts = new Map<string, TextLayout>()
   let tokenCounter = 0
@@ -222,8 +238,34 @@ export function useDesigns(selection: Selection, overrides: Partial<DesignDeps> 
     content: string,
     colorId?: string,
   ): Promise<TextResult> {
+    if (lock.locked.value) return 'locked'
     const key = targetKey(instanceId, zoneId, 'text')
     const token = nextToken(key)
+    pendingTexts.add(key)
+    let result: TextResult = 'stale'
+    try {
+      result = await applyText(instanceId, zoneId, content, colorId, key, token)
+    } finally {
+      // Only the latest edit of this target settles its state.
+      if (tokens.get(key) === token) {
+        pendingTexts.delete(key)
+        if (result === 'ok' || result === 'cleared') invalidTexts.delete(key)
+        else if (result === 'font-error' || result === 'too-long' || result === 'no-image') {
+          invalidTexts.set(key, { content, result })
+        }
+      }
+    }
+    return result
+  }
+
+  async function applyText(
+    instanceId: string,
+    zoneId: string,
+    content: string,
+    colorId: string | undefined,
+    key: string,
+    token: number,
+  ): Promise<TextResult> {
     const target = zoneOf(instanceId, zoneId)
     if (!target) return 'stale'
     const existing = getZoneDesign(designs.value, instanceId, zoneId)?.text
@@ -241,6 +283,7 @@ export function useDesigns(selection: Selection, overrides: Partial<DesignDeps> 
       loadProductImage(target.product),
     ])
     fontStatus.value = fontReady ? 'ready' : 'error'
+    if (fontReady) fontStates.set(content, 'ready')
     if (!isCurrent(key, token, instanceId)) return 'stale'
     if (!fontReady) return 'font-error'
     if (!image) return 'no-image'
@@ -281,13 +324,18 @@ export function useDesigns(selection: Selection, overrides: Partial<DesignDeps> 
   }
 
   function setTextColor(instanceId: string, zoneId: string, colorId: string) {
+    if (lock.locked.value) return
     const text = getZoneDesign(designs.value, instanceId, zoneId)?.text
     if (!text || text.colorId === colorId) return
     designs.value = setLayer(designs.value, instanceId, zoneId, 'text', { ...text, colorId })
   }
 
   function removeText(instanceId: string, zoneId: string) {
-    nextToken(targetKey(instanceId, zoneId, 'text'))
+    if (lock.locked.value) return
+    const key = targetKey(instanceId, zoneId, 'text')
+    nextToken(key)
+    pendingTexts.delete(key)
+    invalidTexts.delete(key)
     designs.value = setLayer(designs.value, instanceId, zoneId, 'text', undefined)
     clearActiveLayer(instanceId, zoneId, 'text')
   }
@@ -305,13 +353,17 @@ export function useDesigns(selection: Selection, overrides: Partial<DesignDeps> 
     let request = presetImages.get(presetId)
     if (!request) {
       const src = designPresets.find((preset) => preset.id === presetId)?.image.src
+      presetErrors.delete(presetId)
       request = src
         ? deps.decodeImage(src).then((image) => {
             loadedPresets.set(presetId, image)
             return image
           })
         : Promise.reject(new Error(`Unknown preset ${presetId}`))
-      request.catch(() => presetImages.delete(presetId))
+      request.catch(() => {
+        presetImages.delete(presetId)
+        presetErrors.add(presetId)
+      })
       presetImages.set(presetId, request)
     }
     return request
@@ -322,6 +374,38 @@ export function useDesigns(selection: Selection, overrides: Partial<DesignDeps> 
     return source.kind === 'preset'
       ? loadedPresets.get(source.presetId)
       : uploads.get(source.uploadId)?.image
+  }
+
+  /**
+   * Resource state of a design image, for read-only consumers (the set composition). Uploads are
+   * owned here: a missing upload is reported, never recreated, and consumers never revoke URLs.
+   */
+  function designImageState(source: ImageSource): 'ready' | 'loading' | 'error' {
+    if (imageOf(source)) return 'ready'
+    if (source.kind === 'upload') return 'error'
+    return presetErrors.has(source.presetId) ? 'error' : 'loading'
+  }
+
+  /** Starts (or retries) loading a preset image; uploads are already decoded or missing. */
+  function ensureDesignImage(source: ImageSource) {
+    if (source.kind === 'preset' && !loadedPresets.has(source.presetId)) {
+      void presetImage(source.presetId).catch(() => {})
+    }
+  }
+
+  function fontState(content: string) {
+    return fontStates.get(content)
+  }
+
+  /** Loads the lettering font for a text (once); errors can be retried by calling again. */
+  function ensureFont(content: string) {
+    const state = fontStates.get(content)
+    if (state === 'ready' || state === 'loading') return
+    fontStates.set(content, 'loading')
+    void deps.loadFont(content).then(
+      (ok) => fontStates.set(content, ok ? 'ready' : 'error'),
+      () => fontStates.set(content, 'error'),
+    )
   }
 
   function commitImage(
@@ -349,6 +433,7 @@ export function useDesigns(selection: Selection, overrides: Partial<DesignDeps> 
     task: () => Promise<{ source: ImageSource; image: DecodedImage } | ImageResult>,
     discard: (result: { source: ImageSource }) => void,
   ): Promise<ImageResult> {
+    if (lock.locked.value) return 'locked'
     const key = targetKey(instanceId, zoneId, 'image')
     const token = nextToken(key)
     const target = zoneOf(instanceId, zoneId)
@@ -418,6 +503,7 @@ export function useDesigns(selection: Selection, overrides: Partial<DesignDeps> 
   }
 
   function removeImage(instanceId: string, zoneId: string) {
+    if (lock.locked.value) return
     nextToken(targetKey(instanceId, zoneId, 'image'))
     pendingImages.delete(targetKey(instanceId, zoneId, 'image'))
     const previous = getZoneDesign(designs.value, instanceId, zoneId)?.image
@@ -435,6 +521,7 @@ export function useDesigns(selection: Selection, overrides: Partial<DesignDeps> 
     kind: LayerKind,
     transform: LayerTransform,
   ): boolean {
+    if (lock.locked.value) return false
     const target = zoneOf(instanceId, zoneId)
     const layer = getZoneDesign(designs.value, instanceId, zoneId)?.[kind]
     const frame = target && frameOf(target.product, target.zone)
@@ -545,6 +632,10 @@ export function useDesigns(selection: Selection, overrides: Partial<DesignDeps> 
     for (const key of [...tokens.keys()]) if (key.startsWith(`${instanceId}|`)) tokens.delete(key)
     for (const key of [...pendingImages])
       if (key.startsWith(`${instanceId}|`)) pendingImages.delete(key)
+    for (const key of [...pendingTexts])
+      if (key.startsWith(`${instanceId}|`)) pendingTexts.delete(key)
+    for (const key of [...invalidTexts.keys()])
+      if (key.startsWith(`${instanceId}|`)) invalidTexts.delete(key)
     if (instanceId in activeZones.value) {
       const next = { ...activeZones.value }
       delete next[instanceId]
@@ -578,6 +669,14 @@ export function useDesigns(selection: Selection, overrides: Partial<DesignDeps> 
       getZoneDesign(designs.value, instanceId, zoneId),
     isImagePending: (instanceId: string, zoneId: string) =>
       pendingImages.has(targetKey(instanceId, zoneId, 'image')),
+    /** True while the set cannot be edited (an image is being exported). */
+    locked: lock.locked,
+    /** True while a text or image edit is still being processed. */
+    hasPendingEdits: computed(() => pendingImages.size > 0 || pendingTexts.size > 0),
+    /** Text edits that were refused; their draft is still shown, the stored text is older. */
+    hasInvalidTextEdits: computed(() => invalidTexts.size > 0),
+    invalidText: (instanceId: string, zoneId: string) =>
+      invalidTexts.get(targetKey(instanceId, zoneId, 'text')),
     setText,
     setTextColor,
     removeText,
@@ -591,6 +690,10 @@ export function useDesigns(selection: Selection, overrides: Partial<DesignDeps> 
     frameOf,
     textLayoutOf,
     imageOf,
+    designImageState,
+    ensureDesignImage,
+    fontState,
+    ensureFont,
     /** Number of live object URLs created for uploads (for diagnostics and tests). */
     liveUploadCount: () => uploads.size,
   }

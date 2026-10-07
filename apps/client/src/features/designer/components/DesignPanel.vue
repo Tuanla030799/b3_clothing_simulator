@@ -61,46 +61,49 @@ const letteringSamples = ['Nguyễn Minh', 'Bảo Ngọc', 'Đậu']
           description="Sản phẩm chưa có vùng thêu."
         />
 
-        <template v-else>
-          <div>
-            <Typography as="span" variant="caption" weight="medium">Vùng thêu</Typography>
-            <Flex
-              v-if="zones.length > 1"
-              wrap
-              gap="small"
-              class="mt-1"
-              role="group"
-              aria-label="Chọn vùng thêu"
-            >
-              <Button
-                v-for="option in zones"
-                :key="option.id"
-                size="small"
-                :variant="option.id === zone.id ? 'primary' : 'default'"
-                :aria-pressed="option.id === zone.id"
-                @click="designs.selectZone(option.id)"
+        <!-- Disabled natively while an image is being created (the edit functions also refuse). -->
+        <fieldset v-else :disabled="designs.locked.value" class="m-0 min-w-0 border-0 p-0">
+          <Flex vertical gap="middle">
+            <div>
+              <Typography as="span" variant="caption" weight="medium">Vùng thêu</Typography>
+              <Flex
+                v-if="zones.length > 1"
+                wrap
+                gap="small"
+                class="mt-1"
+                role="group"
+                aria-label="Chọn vùng thêu"
               >
-                {{ option.name }}
-              </Button>
-            </Flex>
-            <Typography v-else variant="body" weight="medium">{{ zone.name }}</Typography>
-          </div>
+                <Button
+                  v-for="option in zones"
+                  :key="option.id"
+                  size="small"
+                  :variant="option.id === zone.id ? 'primary' : 'default'"
+                  :aria-pressed="option.id === zone.id"
+                  @click="designs.selectZone(option.id)"
+                >
+                  {{ option.name }}
+                </Button>
+              </Flex>
+              <Typography v-else variant="body" weight="medium">{{ zone.name }}</Typography>
+            </div>
 
-          <TextEditor
-            v-if="zone.allowedContent.includes('text')"
-            :instance-id="active.item.instanceId"
-            :zone-id="zone.id"
-          />
-          <ImagePicker
-            v-if="zone.allowedContent.includes('image')"
-            :instance-id="active.item.instanceId"
-            :zone-id="zone.id"
-          />
-          <LayerControls v-if="designs.currentLayer.value" :layer="designs.currentLayer.value" />
-          <Typography v-else variant="caption">
-            Chọn chữ hoặc hình trên ảnh để kéo, đổi kích thước và xoay.
-          </Typography>
-        </template>
+            <TextEditor
+              v-if="zone.allowedContent.includes('text')"
+              :instance-id="active.item.instanceId"
+              :zone-id="zone.id"
+            />
+            <ImagePicker
+              v-if="zone.allowedContent.includes('image')"
+              :instance-id="active.item.instanceId"
+              :zone-id="zone.id"
+            />
+            <LayerControls v-if="designs.currentLayer.value" :layer="designs.currentLayer.value" />
+            <Typography v-else variant="caption">
+              Chọn chữ hoặc hình trên ảnh để kéo, đổi kích thước và xoay.
+            </Typography>
+          </Flex>
+        </fieldset>
       </Flex>
     </Flex>
   </section>

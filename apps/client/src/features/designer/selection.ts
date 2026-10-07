@@ -27,6 +27,8 @@ export type AddBlockReason =
   | { readonly code: 'unknown-product' }
   | { readonly code: 'max-items'; readonly limit: number }
   | { readonly code: 'category-limit'; readonly categoryId: CategoryId; readonly limit: number }
+  /** The set cannot change right now (an image is being created). */
+  | { readonly code: 'locked' }
 
 export type AddCheck =
   | { readonly ok: true; readonly product: Product }

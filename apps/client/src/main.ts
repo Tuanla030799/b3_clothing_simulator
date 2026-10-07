@@ -12,6 +12,17 @@ async function bootstrap() {
     return
   }
 
+  // Development-only harness with generated backgrounds of several aspect ratios (one of them
+  // fails to load): open /?harness=backgrounds. Not part of the production bundle either.
+  if (
+    import.meta.env.DEV &&
+    new URLSearchParams(window.location.search).get('harness') === 'backgrounds'
+  ) {
+    const { default: BackgroundHarness } = await import('./dev/BackgroundHarness.vue')
+    createApp(BackgroundHarness).mount('#app')
+    return
+  }
+
   createApp(App).mount('#app')
 }
 

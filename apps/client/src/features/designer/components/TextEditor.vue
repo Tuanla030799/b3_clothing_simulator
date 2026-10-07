@@ -12,20 +12,21 @@ const text = computed(() => designs.zoneDesign(props.instanceId, props.zoneId)?.
 const fieldId = computed(() => `design-text-${props.instanceId}-${props.zoneId}`)
 
 // The textarea keeps what the customer types; the design keeps the last valid content.
+const invalidEdit = computed(() => designs.invalidText(props.instanceId, props.zoneId))
 const draft = ref('')
-const error = ref<TextResult | null>(null)
 const pickedColorId = ref(DEFAULT_TEXT_COLOR_ID)
 
 watch(
   () => [props.instanceId, props.zoneId] as const,
   () => {
-    draft.value = text.value?.content ?? ''
+    // A refused draft is kept by useDesigns, so switching zones/items does not hide it.
+    draft.value = invalidEdit.value?.content ?? text.value?.content ?? ''
     pickedColorId.value = text.value?.colorId ?? DEFAULT_TEXT_COLOR_ID
-    error.value = null
   },
   { immediate: true },
 )
 
+const error = computed(() => invalidEdit.value?.result ?? null)
 const colorId = computed(() => text.value?.colorId ?? pickedColorId.value)
 
 const messages: Partial<Record<TextResult, string>> = {
@@ -39,8 +40,7 @@ async function apply(value: string) {
   const { instanceId, zoneId } = props
   const hadText = Boolean(text.value)
   const result = await designs.setText(instanceId, zoneId, value, colorId.value)
-  if (result === 'stale') return
-  error.value = result === 'ok' || result === 'cleared' ? null : result
+  if (result === 'stale' || result === 'locked') return
   // Show the layer tools when text is placed for the first time.
   if (result === 'ok' && !hadText && instanceId === props.instanceId && zoneId === props.zoneId) {
     designs.selectLayer(zoneId, 'text')
@@ -60,7 +60,6 @@ function pickColor(id: string) {
 function removeText() {
   designs.removeText(props.instanceId, props.zoneId)
   draft.value = ''
-  error.value = null
 }
 
 const isSelected = computed(() => {

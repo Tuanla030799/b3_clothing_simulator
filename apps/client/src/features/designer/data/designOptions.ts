@@ -51,3 +51,40 @@ export const LAYER_LIMITS = {
   /** Share of the largest fitting size used when a layer is placed for the first time. */
   initialFill: 0.8,
 }
+
+/*
+ * Set composition (development configuration).
+ * - Logical composition width is fixed; height follows the decoded background aspect ratio.
+ * - Without a usable background a neutral 4:3 composition is used (provisional).
+ * - categoryPriority only orders items in the layout (higher = earlier rows / centre), it never
+ *   changes limits or sizes.
+ * - Padding/gap are fractions of the shorter composition side.
+ * - maxItemFill caps how tall the tallest item may be relative to the usable height, so a single
+ *   item does not fill the whole background.
+ */
+export const COMPOSITION = {
+  logicalWidth: 1200,
+  fallbackSize: { width: 1200, height: 900 },
+  /** Aspect (width / height) used for a product whose image is missing (placeholder only). */
+  placeholderAspect: 4 / 3,
+  paddingRatio: 0.04,
+  gapRatio: 0.025,
+  maxItemFill: 0.75,
+  categoryPriority: { shirt: 2, towel: 1 } as Partial<Record<string, number>>,
+}
+
+/*
+ * Image export (technical configuration). The PNG is raster output of the preview scene, not a
+ * machine-embroidery file and not higher-detail than its source images.
+ */
+export const EXPORT = {
+  /** Longer side of the PNG in pixels; the other side follows the composition aspect ratio. */
+  longEdge: 2400,
+  mimeType: 'image/png',
+  /** `<prefix>-YYYYMMDD-HHmmss.png`; never contains customer names or embroidery text. */
+  fileNamePrefix: 'lituta-bo-qua',
+  /** How long a download object URL stays valid before it is revoked. */
+  downloadUrlTtlMs: 60_000,
+  /** Largest allowed side, as a guard against absurd configuration. */
+  maxEdge: 8192,
+}

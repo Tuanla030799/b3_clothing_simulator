@@ -1,20 +1,36 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Download } from '@lucide/vue'
 import { Button, Container, Flex, Typography } from '@lituta/ui'
+import CompositionPanel from '../features/designer/components/CompositionPanel.vue'
 import DesignerSteps from '../features/designer/components/DesignerSteps.vue'
 import DesignPanel from '../features/designer/components/DesignPanel.vue'
 import GiftSetPanel from '../features/designer/components/GiftSetPanel.vue'
 import MobilePanelTabs from '../features/designer/components/MobilePanelTabs.vue'
 import PreviewStage from '../features/designer/components/PreviewStage.vue'
 import ProductPanel from '../features/designer/components/ProductPanel.vue'
+import type { Background } from '../features/designer/types'
+import { provideComposition, useComposition } from '../features/designer/useComposition'
 import { provideDesigns, useDesigns } from '../features/designer/useDesigns'
+import { provideExport, useExport } from '../features/designer/useExport'
 import { provideSelection, useSelection } from '../features/designer/useSelection'
 
-// The page owns the gift-set and design state for the session; every panel reads it.
+// Backgrounds can be replaced for development harnesses; production uses the catalog.
+const props = defineProps<{ backgrounds?: Background[]; defaultBackgroundId?: string }>()
+
+// The page owns the gift-set, design and composition state for the session.
 const selection = useSelection()
 provideSelection(selection)
-provideDesigns(useDesigns(selection))
+const designs = useDesigns(selection)
+provideDesigns(designs)
+const composition = useComposition(selection, designs, {
+  backgrounds: props.backgrounds,
+  defaultBackgroundId: props.defaultBackgroundId,
+})
+provideComposition(composition)
+const exporter = useExport(selection, designs, composition)
+provideExport(exporter)
+const isSet = computed(() => composition.mode.value === 'set')
 
 type PanelId = 'products' | 'design' | 'layout'
 
@@ -35,6 +51,26 @@ const panelTabs = computed(() => [
  */
 const activePanel = ref<PanelId>('products')
 const mobileVisibility = (id: PanelId) => (activePanel.value === id ? '' : 'max-lg:hidden')
+
+// Mobile tabs choose the view: "Bố cục" shows the whole set, "Thiết kế" the item editor.
+// Adding items never switches tabs.
+watch(activePanel, (panel) => {
+  if (panel === 'layout') composition.showSet()
+  else if (panel === 'design') composition.mode.value = 'item'
+})
+// The right column holds the item editor or, in set view, the set panel. On mobile the set panel
+// is shown under the gift set in the "Bố cục" tab.
+const sideVisibility = computed(() =>
+  activePanel.value === 'design' || (activePanel.value === 'layout' && isSet.value)
+    ? ''
+    : 'max-lg:hidden',
+)
+const currentStep = computed(() => (isSet.value ? 2 : selection.activeEntry.value ? 1 : 0))
+
+function editItem(instanceId: string) {
+  composition.editItem(instanceId)
+  activePanel.value = 'design'
+}
 </script>
 
 <template>
@@ -43,9 +79,14 @@ const mobileVisibility = (id: PanelId) => (activePanel.value === id ? '' : 'max-
       <Container>
         <Flex align="center" justify="space-between" gap="middle" class="h-16">
           <Typography as="h1" variant="heading" ellipsis>Thiết kế bộ quà</Typography>
-          <Button disabled>
+          <Button
+            :disabled="!exporter.canExport.value && !exporter.exporting.value"
+            :loading="exporter.exporting.value"
+            aria-describedby="export-status"
+            @click="exporter.run()"
+          >
             <template #icon><Download /></template>
-            Tải ảnh
+            {{ exporter.exporting.value ? 'Đang tạo ảnh…' : 'Tải ảnh' }}
           </Button>
         </Flex>
       </Container>
@@ -54,7 +95,7 @@ const mobileVisibility = (id: PanelId) => (activePanel.value === id ? '' : 'max-
     <main class="flex-1 py-4 lg:py-6">
       <Container>
         <Flex vertical gap="middle">
-          <DesignerSteps :current="0" />
+          <DesignerSteps :current="currentStep" />
 
           <div
             class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:gap-6"
@@ -86,9 +127,10 @@ const mobileVisibility = (id: PanelId) => (activePanel.value === id ? '' : 'max-
             <div
               id="designer-panel-design"
               class="lg:col-start-3 lg:row-span-2 lg:row-start-1"
-              :class="mobileVisibility('design')"
+              :class="sideVisibility"
             >
-              <DesignPanel />
+              <CompositionPanel v-if="isSet" @edit="editItem" @browse="activePanel = 'products'" />
+              <DesignPanel v-else />
             </div>
           </div>
         </Flex>

@@ -10,5 +10,7 @@ export function addBlockMessage(reason: AddBlockReason): string {
       return `Tối đa ${reason.limit} món loại ${categoryName(reason.categoryId).toLowerCase()}`
     case 'unknown-product':
       return 'Sản phẩm không còn trong danh mục'
+    case 'locked':
+      return 'Đang tạo ảnh, vui lòng đợi'
   }
 }

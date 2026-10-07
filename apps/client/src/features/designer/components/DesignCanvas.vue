@@ -10,19 +10,17 @@ import {
   Stage as KStage,
   Transformer as KTransformer,
 } from 'vue-konva'
-import { textColors } from '../data/designOptions'
 import type { LayerKind } from '../design'
 import {
   boxInsideRect,
   containRect,
   normalizeRotation,
   rotatedHalfExtents,
-  zoneRect,
   type CanvasBox,
   type LayerTransform,
   type Rect,
 } from '../geometry'
-import { designFontCss, REFERENCE_FONT_SIZE, type TextLayout } from '../textLayout'
+import { buildProductContent, type ContentLayer } from '../productContent'
 import type { EmbroideryZone } from '../types'
 import { injectDesigns } from '../useDesigns'
 import { injectSelection } from '../useSelection'
@@ -128,12 +126,8 @@ onMounted(() => {
   }
 })
 
-interface LayerView {
-  kind: LayerKind
+interface LayerView extends ContentLayer {
   id: string
-  width: number
-  height: number
-  transform: LayerTransform
   config: Record<string, unknown>
 }
 
@@ -143,47 +137,8 @@ interface ZoneView {
   layers: LayerView[]
 }
 
-function nodeConfig(rect: Rect, transform: LayerTransform, width: number, height: number) {
-  return {
-    x: transform.x * rect.width,
-    y: transform.y * rect.height,
-    width,
-    height,
-    offsetX: width / 2,
-    offsetY: height / 2,
-    rotation: transform.rotation,
-    scaleX: 1,
-    scaleY: 1,
-    name: 'design-layer',
-    draggable: true,
-    // Keeps the whole rotated box inside the zone while dragging.
-    dragBoundFunc(pos: { x: number; y: number }) {
-      const { halfWidth, halfHeight } = rotatedHalfExtents(width, height, transform.rotation)
-      const zoneAbs = { x: rect.x, y: rect.y }
-      return {
-        x: clamp(pos.x, zoneAbs.x + halfWidth, zoneAbs.x + rect.width - halfWidth),
-        y: clamp(pos.y, zoneAbs.y + halfHeight, zoneAbs.y + rect.height - halfHeight),
-      }
-    },
-  }
-}
-
 const clamp = (value: number, min: number, max: number) =>
   max < min ? (min + max) / 2 : Math.min(Math.max(value, min), max)
-
-function textSceneFunc(layout: TextLayout, color: string, height: number) {
-  const scale = height / layout.height
-  return (context: Konva.Context) => {
-    context.save()
-    context.scale(scale, scale)
-    context.setAttr('font', designFontCss(REFERENCE_FONT_SIZE))
-    context.setAttr('textAlign', 'center')
-    context.setAttr('textBaseline', 'alphabetic')
-    context.setAttr('fillStyle', color)
-    for (const line of layout.lines) context.fillText(line.text, line.x, line.y)
-    context.restore()
-  }
-}
 
 // The whole box is the hit area, so thin script strokes are easy to grab.
 function boxHitFunc(width: number, height: number) {
@@ -195,58 +150,44 @@ function boxHitFunc(width: number, height: number) {
   }
 }
 
+/** Editor-only attributes added on top of the shared content layer. */
+function interactive(rect: Rect, layer: ContentLayer): LayerView {
+  const { width, height, transform } = layer
+  return {
+    ...layer,
+    id: `${layer.kind}-${layer.zoneId}`,
+    config: {
+      ...layer.config,
+      name: 'design-layer',
+      draggable: true,
+      // Keeps the whole rotated box inside the zone while dragging.
+      dragBoundFunc(pos: { x: number; y: number }) {
+        const { halfWidth, halfHeight } = rotatedHalfExtents(width, height, transform.rotation)
+        return {
+          x: clamp(pos.x, rect.x + halfWidth, rect.x + rect.width - halfWidth),
+          y: clamp(pos.y, rect.y + halfHeight, rect.y + rect.height - halfHeight),
+        }
+      },
+      ...(layer.kind === 'text' ? { hitFunc: boxHitFunc(width, height), fill: 'transparent' } : {}),
+    },
+  }
+}
+
 const zoneViews = computed<ZoneView[]>(() => {
   const current = entry.value
   const image = drawn.value
   if (!current || !image) return []
-  return designs.zonesOf(current.product).map((zone) => {
-    const rect = zoneRect(image, zone)
-    const design = designs.zoneDesign(current.item.instanceId, zone.id)
-    const layers: LayerView[] = []
-
-    if (design?.image) {
-      const decoded = designs.imageOf(design.image.source)
-      const height = design.image.transform.height * rect.height
-      const width = height * design.image.aspectRatio
-      if (decoded) {
-        layers.push({
-          kind: 'image',
-          id: `image-${zone.id}`,
-          width,
-          height,
-          transform: design.image.transform,
-          config: {
-            ...nodeConfig(rect, design.image.transform, width, height),
-            image: decoded.element,
-          },
-        })
-      }
-    }
-
-    if (design?.text) {
-      const layout = designs.textLayoutOf(design.text.content)
-      if (layout) {
-        const height = design.text.transform.height * rect.height
-        const width = (height * layout.width) / layout.height
-        const color = textColors.find((c) => c.id === design.text!.colorId)?.value ?? '#000000'
-        layers.push({
-          kind: 'text',
-          id: `text-${zone.id}`,
-          width,
-          height,
-          transform: design.text.transform,
-          config: {
-            ...nodeConfig(rect, design.text.transform, width, height),
-            sceneFunc: textSceneFunc(layout, color, height),
-            hitFunc: boxHitFunc(width, height),
-            fill: 'transparent',
-          },
-        })
-      }
-    }
-
-    return { zone, rect, layers }
-  })
+  const content = buildProductContent(
+    designs.zonesOf(current.product),
+    (zoneId) => designs.zoneDesign(current.item.instanceId, zoneId),
+    image,
+    { textLayoutOf: designs.textLayoutOf, imageOf: designs.imageOf },
+  )
+  return content.map(({ zone, rect, layers }) => ({
+    zone,
+    rect,
+    layers: layers.map((layer) => interactive(rect, layer)),
+  }))
 })
 
 const currentZoneId = computed(() => designs.currentZone.value?.id ?? null)

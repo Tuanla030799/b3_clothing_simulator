@@ -3,11 +3,9 @@
 Frontend tool for choosing newborn clothing/accessories, personalizing each item with a name or
 logo, arranging the set on a background and downloading an image. V1 is frontend-only.
 
-**Current state: Phase 3** — on top of the foundation (Phase 1) and gift-set selection (Phase 2),
-customers personalize each selected item: per embroidery zone one text block and one image
-(preset or uploaded from the device), moved, resized and rotated on a canvas or with equivalent
-controls. Arranging the set and exporting are not built yet. See
-[Not implemented yet](#not-implemented-yet).
+**Current state: Phase 5 (V1 flow complete)** — choose items → personalize each item → view the
+whole set arranged on a background → download it as a PNG. The selection and designs live only in
+the page: **reloading the page loses the set**. See [Not implemented yet](#not-implemented-yet).
 
 Repository rules: [AGENTS.md](AGENTS.md). Component guide: [packages/ui/README.md](packages/ui/README.md).
 
@@ -35,6 +33,12 @@ and the states to verify (grid, buttons, image fallback, form wiring, select, dr
 It is loaded through a dynamic import guarded by `import.meta.env.DEV`, so it is not part of the
 production bundle and has no link in the customer UI. No router is used.
 
+`/?harness=backgrounds` (development only, same mechanism) opens the real designer with generated
+test backgrounds — wide 1200×600, tall 600×1200, square 900×900 and one that fails to load — to try
+background choice and export with other aspect ratios and a failing background. Its images are
+created at runtime in [apps/client/src/dev/BackgroundHarness.vue](apps/client/src/dev/BackgroundHarness.vue)
+and are not in the catalog or in the production bundle.
+
 ## Workspaces
 
 | Path          | Package          | Role                                                           |
@@ -58,7 +62,7 @@ production bundle and has no link in the customer UI. No router is used.
 | Types     | typescript 6.0.3 (strict), vue-tsc 3.3.12                                                                                                   |
 | Styling   | tailwindcss / @tailwindcss/vite 4.3.3, tw-animate-css 1.4.0                                                                                 |
 | UI        | shadcn-vue (new-york-v4 templates) on reka-ui 2.11.0, class-variance-authority 0.7.1, clsx 2.1.1, tailwind-merge 3.7.0, @vueuse/core 14.4.0 |
-| Canvas    | konva 10.7.1, vue-konva 4.0.1 (client only; loaded lazily with the editor)                                                                  |
+| Canvas    | konva 10.7.1, vue-konva 4.0.1 (client only; loaded lazily with the editor / set view)                                                       |
 | Icons     | @lucide/vue 1.52.0 (successor of the deprecated lucide-vue-next)                                                                            |
 | Fonts     | @fontsource/be-vietnam-pro 5.3.0, @fontsource/dancing-script 5.3.0                                                                          |
 | Quality   | eslint 10, typescript-eslint 8.71, eslint-plugin-vue 10.11, prettier 3.9, vitest 5.0.3, @vue/test-utils 2.5, jsdom 29                       |
@@ -95,14 +99,42 @@ Code: [apps/client/src/features/designer](apps/client/src/features/designer).
   `EmbroideryZone`, `Background`, `DesignPreset`, `SelectionRules`.
 - [data/catalog.ts](apps/client/src/features/designer/data/catalog.ts) — local development data:
   categories shirt (Áo), towel, hat, bib, mittens and six products backed by the images in
-  `src/assets/products`. **Provisional**: names, embroidery zones and display scales are estimates
-  and every entry has `provisional: true`. The provided images are 1024×768 JPEGs with the
-  checkerboard drawn into the pixels (no real transparency), and some carry a corner watermark;
-  they are used to test selection only and are **not** export-ready product images.
+  `src/assets/products` (`suit`, `suit-2`, `khan`, `mu`, `yem`, `bao-tay`: product id = file name,
+  underscores become `-`). **Provisional**: names, embroidery zones and display scales are
+  estimates and every entry has `provisional: true`; zones were placed by eye on these images and
+  are not workshop-approved. The product images are transparent PNG cut-outs (RGBA, 1448×1086).
 - Selection rules: `maxItems: 10`, `categoryLimits: { shirt: 3 }` — matched by **category id**,
   never by display name. Both bodysuits belong to `shirt`. No other category limits are defined.
 - A `Product` is one model + one color (no variants). `productId` identifies the catalog
   product; each addition to the set is a separate item with its own `instanceId`.
+
+### Adding images
+
+Put user-provided files (product images without embroidery, PNG/WebP with a real transparent
+background) in:
+
+| Folder                                | File name                                    |
+| ------------------------------------- | -------------------------------------------- |
+| `apps/client/src/assets/products/`    | `<product id>.<png\|webp\|jpg\|jpeg\|avif>`  |
+| `apps/client/src/assets/backgrounds/` | `<background id>.<ext>` (default: `anh-nen`) |
+| `apps/client/src/assets/designs/`     | `<preset id>.<ext>` (also `svg`)             |
+
+Files are discovered with `import.meta.glob` in
+[data/assets.ts](apps/client/src/features/designer/data/assets.ts), so production URLs are hashed
+by Vite and a missing file simply means `src: undefined` → placeholder (no broken import or
+request). Placeholders are never exportable product images. File names are normalized to ids
+(lower case, spaces/underscores → `-`), e.g. `suit_2.png` → `suit-2`. If you rename a file, rename
+the product id in the catalog to match (or the product shows a placeholder).
+
+When a real image is added, record its intrinsic `width`/`height` in the product `image` and
+replace provisional zones/scale with measured values, then set `provisional: false`.
+
+### Embroidery zones
+
+`EmbroideryZone { id, name, x, y, width, height, allowedContent: ('text' | 'image')[] }`.
+Coordinates are normalized 0–1 to the **full source image** (origin top-left), independent of
+the viewport and of where the product is placed in the composition. A zone must stay inside the
+image (`x + width ≤ 1`, `y + height ≤ 1`); `catalog.test.ts` checks these invariants.
 
 ## Gift-set selection (Phase 2)
 
@@ -128,7 +160,7 @@ Behaviour:
   ids never change.
 - Counters (“Tổng x/10”, “Áo y/3”) are derived from the selected items.
 - Preview shows the active item with its design (see the editor below) or the empty background —
-  it is **not** a composition of the set. “Tải ảnh” stays disabled.
+  it is **not** a composition of the set.
 - Layout: lg+ has products | preview above the gift set | personalization. Mobile shows the
   preview, then tabs Sản phẩm / Thiết kế / Bố cục (the gift set). Panels stay mounted when hidden.
 - State lives only for the session (page lifetime); a reload starts with an empty set. Nothing is
@@ -281,43 +313,215 @@ Dimensions are read from the file header before decoding, and checked again afte
 
 ### Provisional catalog and image limitations
 
-- Zones are estimates. `bodysuit` has two zones (“Ngực áo”, “Thân dưới”) calibrated by eye against
-  `Bodysuit.jpeg` for acceptance testing; none are workshop-approved.
-- The product images are JPEGs whose checkerboard is part of the pixels (no alpha). The editor
-  shows them as they are; they cannot be composited on a background until real cut-outs exist.
+- Zones are estimates placed by eye on the current PNGs (`suit` has two: “Ngực áo”, “Thân dưới”);
+  none are workshop-approved.
+- Product images are transparent PNG cut-outs, so the set view and the export composite them on the
+  background. Each item's layout box is still its **whole image rectangle** (transparent margins
+  included), so garments look smaller than their boxes; sizing from the visible (alpha) bounds
+  would be a separate decision.
 
-### Adding images
+## Set view (Phase 4)
 
-Put user-provided files (product images without embroidery, ideally PNG/WebP with a real
-transparent background) in:
+Code: `setLayout.ts` (pure layout), `useComposition.ts` (view mode, background, readiness),
+`productContent.ts` (shared item renderer), `components/CompositionCanvas.vue`,
+`components/CompositionPanel.vue`; tests in `setLayout.test.ts` and `composition.test.ts`.
 
-| Folder                                | File name                                    |
-| ------------------------------------- | -------------------------------------------- |
-| `apps/client/src/assets/products/`    | `<product id>.<png\|webp\|jpg\|jpeg\|avif>`  |
-| `apps/client/src/assets/backgrounds/` | `<background id>.<ext>` (default: `anh-nen`) |
-| `apps/client/src/assets/designs/`     | `<preset id>.<ext>` (also `svg`)             |
+### Using it
 
-Files are discovered with `import.meta.glob` in
-[data/assets.ts](apps/client/src/features/designer/data/assets.ts), so production URLs are hashed
-by Vite and a missing file simply means `src: undefined` → placeholder (no broken import or
-request). Placeholders are never exportable product images. File names are normalized to ids
-(lower case, spaces/underscores → `-`), e.g. `Bodysuit_dai_tay.jpeg` → `bodysuit-dai-tay`.
+- “Từng món” / “Cả bộ” in the preview switches between the item editor and the whole set (step 3
+  “Xem cả bộ” becomes current). On mobile the “Bố cục” tab shows the set (gift-set list + set
+  panel) and “Thiết kế” returns to the editor; adding items never changes the tab.
+- The set panel replaces the layer tools: background choice (thumbnails when the catalog has more
+  than one background, otherwise its name), readiness status with “Thử lại”, and the item list with
+  “Chỉnh” to edit that item in the editor. Edits appear in the set immediately when switching back.
+- The set view is read-only (no drag/resize of items yet); the page scrolls normally over it.
+  Only one canvas is mounted at a time (editor or set). An empty set shows the EmptyState.
 
-When a real image is added, record its intrinsic `width`/`height` in the product `image` and
-replace provisional zones/scale with measured values, then set `provisional: false`.
+### Composition and placement contract
 
-### Embroidery zones
+```ts
+// Logical composition size: width COMPOSITION.logicalWidth (1200); height from the decoded
+// background aspect. No usable background → COMPOSITION.fallbackSize (1200 × 900, provisional).
+interface Placement { instanceId: string; x: number; y: number; width: number; height: number } // top-left, logical units
+interface SetLayout { size: { width; height }; placements: Placement[]; strategy: 'rows' | 'grid' }
+interface LayoutItem { instanceId; aspectRatio; displayScale; priority }
+layoutSet(items, size, { paddingRatio, gapRatio, maxItemFill }): SetLayout   // pure, deterministic
 
-`EmbroideryZone { id, name, x, y, width, height, allowedContent: ('text' | 'image')[] }`.
-Coordinates are normalized 0–1 to the **full source image** (origin top-left), independent of
-the viewport and of where the product is placed in the composition. A zone must stay inside the
-image (`x + width ≤ 1`, `y + height ≤ 1`); `catalog.test.ts` checks these invariants.
+const composition = useComposition(selection, designs)   // DesignerPage; provideComposition / injectComposition
+composition.mode            // 'item' | 'set'
+composition.layout          // computed SetLayout (derived, never stored)
+composition.size / background / backgroundEntry / backgroundError / pendingBackgroundId
+composition.selectBackground(id) / retry() / showSet() / editItem(instanceId)
+composition.issues / status // 'empty' | 'loading' | 'ready' | 'incomplete'
+```
+
+- A placement box has the product image aspect ratio; the product image fills it exactly and the
+  item's zones/designs are drawn inside with `buildProductContent` — the same function the editor
+  uses, so design-to-product proportions are identical in both views.
+- Rendering in the set view: layer `background` (image scaled to the stage, or a neutral rect),
+  layer `set` (scaled once from logical units; one group per item, id `set-<instanceId>`, with the
+  product image then per-zone clipped groups of image/text layers). No zone outlines, transformer
+  or handles exist in this view. Designs are only read, never changed.
+- The stage is sized from the container width; only the layer scale changes on resize.
+
+### When the layout changes
+
+| Change                                                                      | Layout recomputed?             |
+| --------------------------------------------------------------------------- | ------------------------------ |
+| Item added / removed (incl. repeats)                                        | yes                            |
+| Background with another aspect ratio                                        | yes (new composition size)     |
+| A product image finishes decoding with a different aspect than its metadata | yes, with the verified size    |
+| Text, color, image or transform of a design                                 | no — content only              |
+| Viewport / container resize, tab or mode switch                             | no — display scale only        |
+| Order in which images finish decoding                                       | no — final inputs are the same |
+
+### Size convention (`displayScale`) and the layout heuristic
+
+- Item base box: aspect `a` = decoded product image width / height (catalog metadata, then
+  `COMPOSITION.placeholderAspect`, until decoded); visual size `s = displayScale`, taken as the
+  geometric-mean side `√(width·height)`: `width = s·√a`, `height = s/√a`. One factor `u` scales all
+  boxes, so displayScale ratios hold and nothing is distorted. These are relative display sizes,
+  not physical measurements (current values are provisional estimates; no centimetres exist yet).
+- Order: `COMPOSITION.categoryPriority` (shirt 2, towel 1, others 0; configuration, not product
+  ids), then larger visual size, then add order.
+- Every split of that order into consecutive rows is tried (≤ 512 for 10 items). Each gets the
+  largest `u` that fits all rows inside the composition minus padding (4% of the shorter side)
+  with gaps (2.5%), capped so the tallest item uses at most 75% of the usable height. Score =
+  `u × (1 − 0.2 × row-width imbalance)`; the first best candidate wins (deterministic). Rows and
+  items are centred; in each row the most important item is in the middle.
+- Guarantees (tested for 1–10 items, landscape/portrait/square compositions, tall/wide/square
+  images, repeats): every instance once, inside the padded area, aspect kept, no overlapping
+  boxes, at least one gap between boxes, no NaN/negative sizes.
+- Fallback: if no row split is valid, a grid of equal cells places every item (contained in its
+  cell). Items are never rotated.
+- Limits: boxes include the empty margins of the product photos, so items can look smaller than
+  they are; the layout aims at correctness and stability, not a natural photo arrangement.
+
+### Resources in the set view
+
+- Product images, preset images, fonts and uploaded images are loaded and owned by `useDesigns`
+  (shared caches; one decode per source, not per instance). The set view only borrows them and
+  never creates or revokes object URLs, so switching views keeps uploads; replacing/removing an
+  image or an item still releases its URL as in Phase 3.
+- Only background images are loaded by the composition (bundled assets; nothing to revoke). A new
+  background replaces the current one only after it decoded; on failure the previous one stays
+  (or the neutral fallback) with a message; an older load finishing late is ignored.
+- Text is drawn only when the lettering font is confirmed for that content; images only when
+  decoded. Anything missing is listed (“Bộ chưa hiển thị đầy đủ”) with “Thử lại”; an item whose
+  product image is missing keeps its place as a labelled placeholder. Removed items never return.
+- Only the selected items' resources are loaded, when the set view is shown.
+
+### Assets still needed for visual acceptance
+
+The set view and the export work with the current files, and the product images are now real
+transparent cut-outs. It is still **not** visually accepted: the background and the preset image
+(`designs/icon.jpeg`, an opaque JPEG that shows as a grey box on a garment) carry marks or opaque
+backgrounds, and approved backgrounds, verified display scales, embroidery zones and thread colors
+are still needed before judging the look.
+
+## Downloading the image (Phase 5)
+
+Code: `exportImage.ts` (size, name, offscreen renderer, downloader), `useExport.ts` (readiness,
+lock, flow), `setScene.ts` + `sceneInput.ts` (shared scene), `editLock.ts`,
+`components/ExportStatus.vue`; tests in `export.test.ts` and `exportImage.test.ts`.
+
+### How to download
+
+1. Add items, personalize them, switch the preview to **“Cả bộ”**.
+2. Press **“Tải ảnh”** in the header. It is enabled only in “Cả bộ” and only when the set is ready;
+   otherwise a short reason is shown under the preview toolbar (also on mobile): empty set, switch
+   to “Cả bộ”, resources still loading or failed (“Tải lại tài nguyên”), a background that failed,
+   a text edit being applied or refused.
+3. The button shows “Đang tạo ảnh…” while working and ignores further presses. On success the
+   status says “Đã bắt đầu tải ảnh.” (the app cannot know whether the browser saved the file); on
+   failure a Vietnamese message and “Thử tải lại” appear and the set is unchanged.
+4. There is no confirmation dialog. The “Từng món” view never downloads a single item.
+
+### Output
+
+- PNG, long edge **2400 px** (`EXPORT.longEdge` in `data/designOptions.ts`), the other edge rounded
+  from the composition aspect ratio (error < 1 px). Examples: 1200×655 → 2400×1310, 1200×1800 →
+  1600×2400, square → 2400×2400. Size comes from the logical composition only — never from CSS
+  size, viewport or devicePixelRatio (desktop, 2× tablet and 3× phone exports of the same set were
+  pixel-identical in testing). It does not add detail the source images do not have, and it is not
+  an embroidery-machine file.
+- The background is included exactly as previewed (the PNG is opaque). The background fills the
+  whole canvas; items are drawn with one uniform scale, so no item is stretched.
+- File name `lituta-bo-qua-YYYYMMDD-HHmmss.png` (local time), never containing names or text.
+
+### Export readiness (one check for the button, the status text and `run()`)
+
+`useExport.block` is `null` only when all hold: the preview is “Cả bộ”; the set has items; no text
+edit is being processed (`pending-edit`) and no refused edit (too long, font error) is still
+shown in its textarea (`invalid-edit` — the older stored text is never exported silently);
+the **chosen** background is loaded (a failed switch keeps showing the old background in the
+preview but blocks export; the neutral fill is exported only when no background is configured at
+all); every product image, preset/uploaded image and font is ready (a missing product image
+shows a placeholder in the preview but is never exported); every item has exactly one placement;
+and no export is running. `run()` checks it again itself, confirms the lettering font with
+`document.fonts.load`, checks again, then builds the scene and fails with a typed error if any
+resource is missing.
+
+### Snapshot, lock and renderer
+
+- `run()` takes the **edit lock** (`selection.lock`) before its first `await`. While it is held,
+  adding/removing/selecting items, every design edit (text, color, images, transforms) and
+  changing the background are refused by the functions themselves; the matching buttons and the
+  editor fieldset are also disabled. The lock is released in `finally` (success, failure,
+  unmount).
+- The snapshot is `captureSceneInput()` → `buildSetScene()`: the same functions that feed the
+  preview, so preview and file cannot disagree. It references the immutable `DesignState` of that
+  moment, decoded images and text layouts; nothing is cloned, and DesignState is never mutated.
+- `renderSceneToBlob()` builds a **detached** Konva stage (1×1 stage size, so layer buffers stay
+  tiny on high-DPR phones) with only a `background` layer and a `set` layer — no zone outlines,
+  transformer, handles or placeholders — and rasterises it with `toCanvas({ width, height,
+pixelRatio: 1 })` to a Blob. No DOM capture, screenshot or preview bitmap is used. The temporary
+  stage and canvas are released in `finally`.
+
+### Resource ownership and cleanup
+
+- Decoded product/preset/upload images and upload object URLs stay owned by `useDesigns`;
+  the background by `useComposition`. The exporter only borrows decoded images and never revokes
+  those URLs.
+- The exporter owns the temporary stage/canvas, the Blob and the download object URL. The URL is
+  revoked after 60 s (`EXPORT.downloadUrlTtlMs`) — not at click time — and all remaining ones are
+  revoked on unmount. An unmount during an export skips the download and UI updates.
+
+### Contract to keep when changing the export
+
+- Keep `buildSetScene`/`captureSceneInput` as the single source of positions and content for both
+  the preview and the exporter; keep layers `background` and `set` free of UI.
+- Do not export from a state `exportReadiness` rejects; do not weaken the lock.
+- Keep export size derived from the logical size.
+
+### Browsers and tests used
+
+Automated: `npm test` (export readiness, lock, snapshot, errors, cleanup, size, file name, scene).
+Manually driven with Playwright (Chromium, desktop): real downloads at 1440 px; desktop/768 px
+(2× DPR)/375 px (3× DPR, mobile emulation with touch — **emulated, not a physical phone**) exports
+decoded with PIL; a set of 1, 5 and 10 items; two same-model shirts with different names, white and
+dark text, multi-line text, several zones, uploaded + preset images; rapid double click; slow
+export with the lock visible; null-Blob and tainted-canvas failures with retry; wide/tall/square and
+failing backgrounds with the harness; delete/replace item then re-export. Firefox and Safari were
+not tested.
+
+### Known limits and provisional data
+
+- Product images are transparent PNGs and appear in the file with transparency composited on the
+  chosen background. Functional acceptance is done; **visual acceptance is not**: approved
+  backgrounds and preset images, embroidery zones and `displayScale` values are still needed.
+- The background is drawn with default image smoothing; very large uploaded images drawn small
+  may look slightly aliased.
+- A canvas that the browser marks tainted cannot be exported; images here are same-origin/blob so
+  this should not occur. There is no proxy or server fallback by design.
+- Reloading the page loses the whole set and its designs.
 
 ## Not implemented yet
 
-Arranging the items on the background, applying a design to the whole set, image export (the
-“Tải ảnh” button stays disabled), undo/redo, more than one text and one image per zone, multi-select
-and layer reordering, choosing fonts, thread/fabric simulation, multiple backgrounds selection,
-persistence of the selection or designs, customer zone editing, API or mock API, admin app,
+Exporting other formats or sizes, sharing/saving to the photo library, PDF, manual moving/resizing
+of items in the set,
+saving a layout, applying a design to the whole set, undo/redo, more than one text and one image
+per zone, multi-select and layer reordering, choosing fonts, thread/fabric/lighting simulation,
+background removal, persistence of the selection or designs, customer zone editing, API or mock API, admin app,
 Docker/CI/deploy. Out of V1 scope entirely: accounts, cart, payment, ordering, uploading logos to
 a server, saving designs across reloads, realistic thread simulation.

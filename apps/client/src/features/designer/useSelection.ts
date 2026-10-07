@@ -1,5 +1,6 @@
 import { computed, inject, provide, shallowRef, type InjectionKey } from 'vue'
 import { products as catalogProducts, selectionRules } from './data/catalog'
+import { createEditLock, type EditLock } from './editLock'
 import {
   addItem,
   checkCanAdd,
@@ -26,6 +27,8 @@ export interface UseSelectionOptions {
   catalog?: SelectionCatalog
   /** Must return a new unique id on every call. Defaults to a per-selection counter. */
   createId?: () => string
+  /** Shared edit lock; a new one is created when omitted. Exposed as `selection.lock`. */
+  lock?: EditLock
 }
 
 /**
@@ -41,6 +44,7 @@ export function useSelection(options: UseSelectionOptions = {}) {
   let counter = 0
   const createId = options.createId ?? (() => `item-${++counter}`)
 
+  const lock = options.lock ?? createEditLock()
   const state = shallowRef<SelectionState>(emptySelection)
 
   const entries = computed<SelectedEntry[]>(() =>
@@ -57,23 +61,31 @@ export function useSelection(options: UseSelectionOptions = {}) {
 
   return {
     rules: catalog.rules,
+    /** Held while an image is exported; add/select/remove (and design edits) are refused. */
+    lock,
     items: computed(() => state.value.items),
     activeInstanceId: computed(() => state.value.activeInstanceId),
     entries,
     activeEntry,
     /** Category id per selected item, repeats included — the input of SelectionSummary. */
     selectedCategoryIds: computed(() => selectedCategoryIds(state.value.items, catalog)),
-    canAdd: (productId: string): AddCheck => checkCanAdd(state.value.items, productId, catalog),
+    canAdd: (productId: string): AddCheck =>
+      lock.locked.value
+        ? { ok: false, reason: { code: 'locked' } }
+        : checkCanAdd(state.value.items, productId, catalog),
     /** Re-checks the rules against the current state; returns the new instanceId on success. */
     add(productId: string): AddCheck & { instanceId?: string } {
+      if (lock.locked.value) return { ok: false, reason: { code: 'locked' } }
       const result = addItem(state.value, productId, catalog, createId)
       state.value = result.state
       return { ...result.check, instanceId: result.instanceId }
     },
     select(instanceId: string) {
+      if (lock.locked.value) return
       state.value = selectItem(state.value, instanceId)
     },
     remove(instanceId: string) {
+      if (lock.locked.value) return
       state.value = removeItem(state.value, instanceId)
     },
   }

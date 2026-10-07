@@ -70,6 +70,7 @@ async function remove(instanceId: string, index: number) {
           <button
             type="button"
             class="flex min-w-0 flex-1 items-center gap-3 rounded-md p-1 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            :disabled="selection.lock.locked.value"
             :aria-current="entry.item.instanceId === selection.activeInstanceId.value || undefined"
             @click="selection.select(entry.item.instanceId)"
           >
@@ -96,6 +97,7 @@ async function remove(instanceId: string, index: number) {
           </button>
           <Button
             data-remove
+            :disabled="selection.lock.locked.value"
             variant="text"
             size="small"
             :aria-label="`Xóa món ${entry.position}: ${entry.product.name}`"
