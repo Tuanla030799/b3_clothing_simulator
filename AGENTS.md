@@ -15,20 +15,22 @@
 - Use Vue 3 Composition API with `<script setup lang="ts">`, TypeScript strict, Vite, Tailwind CSS, and shadcn-vue.
 - Use Yarn workspaces with one root yarn.lock and the packageManager version pinned in package.json. Do not introduce another package manager or lockfile.
 - Declare dependencies in the workspace that uses them; avoid duplicate Vue runtimes.
-- Keep client and future admin as separate applications in the same repository.
-- Build only the client and shared UI in Phase 1. Do not scaffold an empty admin app or backend.
+- Keep client (`apps/client`) and admin (`apps/admin`) as separate applications in the same repository; each has its own API client.
+- The backend lives in the separate `b3_clothing_simulator_api` repository; never add a backend here.
+- Integrate the API phase by phase as described in `docs/api-integration-plan.md`.
 - Applications import shared UI through `@lituta/ui` public exports, not cross-package relative paths.
 - Shared UI must not import application components, catalog data, API clients, routers, or stores.
 - Add packages, state libraries, routers, services, and abstractions only for a concrete current need.
-- Use Ant Design Vue Table directly in the application that needs it. Do not create a shared Table wrapper or install Ant Design Vue merely for future use.
+- Use Ant Design Vue only in the admin app and only for what `@lituta/ui` does not provide (Table, Modal, Drawer, Menu, inputs, date pickers, messages). Use the shared Button, Select, FormField, Image, Typography, Link, layout and EmptyState first. Do not create shared wrappers around Ant components.
 
 ## Repository structure
 
 | Path                               | Responsibility                                     |
 | ---------------------------------- | -------------------------------------------------- |
 | apps/client/src/pages              | Screen entry points and page composition           |
+| apps/client/src/api                | HTTP client, API DTO types, remote-data composable |
 | apps/client/src/features/<feature> | Feature components, logic, types, local data       |
-| apps/client/src/assets             | Product images, backgrounds, presets, design fonts |
+| apps/client/src/assets             | Static site images and design fonts (not catalog)  |
 | apps/client/src/dev                | Development-only UI playground                     |
 | packages/ui/src/components/ui      | Underlying shadcn-vue primitives                   |
 | packages/ui/src/components/common  | Project-level shared components                    |
@@ -77,16 +79,17 @@ Keep business-specific UI in its feature. Create directories only when they cont
 
 ## Product invariants
 
-- V1 is frontend-only: select products, personalize, arrange, download an image.
-- Keep limits in local configuration: at most 10 selected items, at most 3 in the shirt category. No other category limit is agreed.
-- Check category IDs, not translated category names.
+- The API is the source of truth for catalog, designer configuration, banners, collections and orders. Do not keep mock copies of API data in the client; show loading and error states with a retry instead.
+- The API contract (envelope, error codes, DTOs) is documented in the API repository (README and `docs/*-contract.md`). Read it before integrating an endpoint; do not guess fields.
+- Selection limits come from the designer config (`maxItems`, per-category limits keyed by category ID). Check category IDs, not translated names; never hardcode the 10/3 defaults.
 - Repeated products are allowed. Each selected instance has independent identity and design.
-- Each model/color is a separate product for V1.
-- Configure rectangular embroidery zones per product using coordinates normalized to the source image, not the viewport.
+- A designer product is one API product color. Its image is the color's transparent design image; embroidery zones are rectangles normalized to that image, not the viewport.
 - Keep product design coordinates independent of composition placement.
-- Do not invent real image dimensions or physical proportions. Label development data as provisional.
-- Missing assets must have stable fallbacks, not broken imports or fake exportable products.
-- Do not introduce ordering, authentication, backend upload, persistence, or realistic thread simulation without a requested scope change.
+- Do not invent real image dimensions or physical proportions; use the sizes the API reports and the decoded size when they differ.
+- Missing images must have stable fallbacks, not broken requests or fake exportable products.
+- Canvas images from the API are loaded with CORS so export keeps working; never draw images that would taint the canvas.
+- Prices are calculated by the API; the client only displays them. Ordering is a contact request (no payment); an unquoted embroidery fee is not a final total.
+- Do not introduce customer accounts, payment or realistic thread simulation without a requested scope change.
 
 ## Verification and documentation
 

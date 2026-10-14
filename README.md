@@ -1,9 +1,11 @@
 # Lituta — Thiết kế bộ quà
 
 Frontend tool for choosing newborn clothing/accessories, personalizing each item with a name or
-logo, arranging the set on a background and downloading an image. V1 is frontend-only.
+logo, arranging the set on a background and downloading an image. Data comes from the Lituta API
+(separate repository `b3_clothing_simulator_api`).
 
-**Current state: Phase 5 (V1 flow complete)** — choose items → personalize each item → view the
+**Current state: Phase 5 flow + API integration I1–I5** (see
+[docs/api-integration-plan.md](docs/api-integration-plan.md)) — choose items → personalize each item → view the
 whole set arranged on a background → download it as a PNG. The selection and designs live only in
 the page: **reloading the page loses the set**. See [Not implemented yet](#not-implemented-yet).
 
@@ -44,22 +46,26 @@ production bundle and has no link in the customer UI. No router is used.
 test backgrounds — wide 1200×600, tall 600×1200, square 900×900 and one that fails to load — to try
 background choice and export with other aspect ratios and a failing background. Its images are
 created at runtime in [apps/client/src/dev/BackgroundHarness.vue](apps/client/src/dev/BackgroundHarness.vue)
-and are not in the catalog or in the production bundle.
+and are not in the catalog or in the production bundle. Products still come from the API, so it needs
+the API running.
 
 ## Workspaces
 
-| Path          | Package          | Role                                                           |
-| ------------- | ---------------- | -------------------------------------------------------------- |
-| `apps/client` | `@lituta/client` | Customer app (Vue 3 + Vite)                                    |
-| `packages/ui` | `@lituta/ui`     | Shared UI for client and the future admin app (source exports) |
+| Path          | Package          | Role                                                                       |
+| ------------- | ---------------- | -------------------------------------------------------------------------- |
+| `apps/client` | `@lituta/client` | Customer app (Vue 3 + Vite)                                                |
+| `apps/admin`  | `@lituta/admin`  | Shop admin (Vue 3 + Vite + Ant Design Vue), see [Admin app](#admin-app-i5) |
+| `packages/ui` | `@lituta/ui`     | Shared UI for client and admin (source exports)                            |
 
 - Apps import UI only via `@lituta/ui` and `@lituta/ui/styles.css`.
 - The UI package never imports app code, catalog data, routers, stores or API clients.
 - Dependencies are declared in the workspace that uses them; `vue` is a peer dependency of the
   UI package so a single Vue runtime is installed.
-- No admin app, backend, router, state library or HTTP client yet.
-- Ant Design Vue `Table` will be installed directly in the app that needs it; there is no shared
-  Table wrapper.
+- No state library. The backend is a separate repository; the client talks to it through
+  [apps/client/src/api](apps/client/src/api) (see [API connection](#api-connection)), the admin
+  through its own [apps/admin/src/api](apps/admin/src/api).
+- Ant Design Vue is installed in the admin app only, for components `@lituta/ui` does not have;
+  there are no shared wrappers around it.
 
 ### Stack (installed versions)
 
@@ -98,50 +104,57 @@ jsdom 30 requires Node ≥ 24.15.
 > `await document.fonts.load('600 32px "Dancing Script"', text)` and verify
 > `document.fonts.check(...)`; never silently export with a fallback font.
 
+## API connection
+
+- Base URL: `VITE_API_BASE_URL` (e.g. `http://localhost:3000/api/v1`, see
+  [apps/client/.env.example](apps/client/.env.example); put overrides in `apps/client/.env.local`).
+  `yarn dev` falls back to `http://localhost:3000/api/v1`; a production build without it shows a
+  configuration error on pages that load data. GitHub Pages reads the repository variable
+  `VITE_API_BASE_URL`.
+- The API must list the client origin in `CORS_ORIGINS` (JSON and `/uploads` images). Images drawn
+  on canvases are requested with CORS; without it the PNG export would be blocked.
+- [http.ts](apps/client/src/api/http.ts): `createApiClient({ baseUrl, fetch })` → `get(path,
+{ query, signal })` returns the envelope's `data`; `getAll(path)` reads every page. Failures are
+  `ApiError` (`kind` `config` | `network` | `http` | `invalid-response`, `status`, `code`,
+  `requestId`, `errors`). `loadErrorMessage(error)` gives the Vietnamese message.
+- [useRemoteData.ts](apps/client/src/api/useRemoteData.ts): `{ data, error, notFound, loading,
+reload }`; [usePagedList.ts](apps/client/src/api/usePagedList.ts): `{ entries, total, loaded,
+hasMore, loading, error, notFound, reset, loadMore }` for “Xem thêm” lists. In both the latest
+  request wins and pending requests are aborted when the component unmounts.
+- [publicCatalog.ts](apps/client/src/api/publicCatalog.ts): DTO types and calls for
+  `public/categories`, `public/products` (+ `/:slug`, `/:slug/designer`), `public/designer/config`,
+  `public/banners`, `public/collections` (+ `/:slug`, `/:slug/products`).
+- Running the API locally: see its README (PostgreSQL in Docker, migrations, `npm run db:seed`,
+  `npm run admin:create`, then create categories/products/colors/zones through the admin API).
+
 ## Catalog data, images and embroidery zones
 
 Code: [apps/client/src/features/designer](apps/client/src/features/designer).
 
 - [types.ts](apps/client/src/features/designer/types.ts) — `Category`, `Product`,
-  `EmbroideryZone`, `Background`, `DesignPreset`, `SelectionRules`.
-- [data/catalog.ts](apps/client/src/features/designer/data/catalog.ts) — local development data:
-  categories shirt (Áo), towel, hat, bib, mittens and six products backed by the images in
-  `src/assets/products` (`suit`, `suit-2`, `khan`, `mu`, `yem`, `bao-tay`: product id = file name,
-  underscores become `-`). **Provisional**: names, embroidery zones and display scales are
-  estimates and every entry has `provisional: true`; zones were placed by eye on these images and
-  are not workshop-approved. The product images are transparent PNG cut-outs (RGBA, 1448×1086).
-- Selection rules: `maxItems: 10`, `categoryLimits: { shirt: 3 }` — matched by **category id**,
-  never by display name. Both bodysuits belong to `shirt`. No other category limits are defined.
-- A `Product` is one model + one color (no variants). `productId` identifies the catalog
-  product; each addition to the set is a separate item with its own `instanceId`.
-
-### Adding images
-
-Put user-provided files (product images without embroidery, PNG/WebP with a real transparent
-background) in:
-
-| Folder                                | File name                                    |
-| ------------------------------------- | -------------------------------------------- |
-| `apps/client/src/assets/products/`    | `<product id>.<png\|webp\|jpg\|jpeg\|avif>`  |
-| `apps/client/src/assets/backgrounds/` | `<background id>.<ext>` (default: `anh-nen`) |
-| `apps/client/src/assets/designs/`     | `<preset id>.<ext>` (also `svg`)             |
-
-Files are discovered with `import.meta.glob` in
-[data/assets.ts](apps/client/src/features/designer/data/assets.ts), so production URLs are hashed
-by Vite and a missing file simply means `src: undefined` → placeholder (no broken import or
-request). Placeholders are never exportable product images. File names are normalized to ids
-(lower case, spaces/underscores → `-`), e.g. `suit_2.png` → `suit-2`. If you rename a file, rename
-the product id in the catalog to match (or the product shows a placeholder).
-
-When a real image is added, record its intrinsic `width`/`height` in the product `image` and
-replace provisional zones/scale with measured values, then set `provisional: false`.
+  `EmbroideryZone`, `Background`, `DesignPreset`, `SelectionRules`, `DesignerCatalog`.
+- [catalog.ts](apps/client/src/features/designer/catalog.ts) — `loadDesignerCatalog()` reads the
+  designer config, categories, every public product and each product's designer data. One API
+  **product color** becomes one designer `Product`: `id` = color id, `productId` = product id,
+  name “Product – Color”, `image` = the color's transparent `designImage` (URL and pixel size from
+  the API), `displayScale` and `embroideryZones` from the color (empty when the designer is off for
+  that color: it can be selected but not personalized). A product hidden between the list and the
+  detail request (404) is skipped; any other failure fails the whole load.
+- `DesignerPage` loads the catalog (loading state, error with “Thử lại”), then mounts
+  `DesignerWorkspace`, which owns the session state. Components read the catalog with
+  `injectCatalog()` and `useCategoryName()`.
+- Selection rules come from the config: `maxItems` and per-category limits keyed by the API
+  **category id**, never by display name. Categories without a limit have no own limit.
+- Each addition to the set is a separate item with its own `instanceId`.
+- There is no local catalog data any more. Catalog images, zones, scales, backgrounds and presets
+  are managed through the admin API.
 
 ### Embroidery zones
 
 `EmbroideryZone { id, name, x, y, width, height, allowedContent: ('text' | 'image')[] }`.
 Coordinates are normalized 0–1 to the **full source image** (origin top-left), independent of
 the viewport and of where the product is placed in the composition. A zone must stay inside the
-image (`x + width ≤ 1`, `y + height ≤ 1`); `catalog.test.ts` checks these invariants.
+image (`x + width ≤ 1`, `y + height ≤ 1`); the API enforces this and the client skips invalid zones.
 
 ## Gift-set selection (Phase 2)
 
@@ -250,7 +263,7 @@ interface LayerTransform {
 interface TextDesign { content: string; fontId: 'dancing-script-600'; colorId: string; transform: LayerTransform }
 type ImageSource =
   | { kind: 'preset'; presetId: string }
-  | { kind: 'upload'; uploadId: string; fileName: string } // runtime resource, never uploaded
+  | { kind: 'upload'; uploadId: string; fileName: string } // runtime resource, uploaded only with an order
 interface ImageDesign { source: ImageSource; aspectRatio: number /* width/height */; transform: LayerTransform }
 interface ZoneDesign { text?: TextDesign; image?: ImageDesign }
 type DesignState = Record<instanceId, Record<zoneId, ZoneDesign>>
@@ -300,7 +313,7 @@ designs.textLayoutOf(content) / imageOf(source) / productImageState(product) // 
   awaited and the returned faces must be `loaded` and `document.fonts.check` true. Otherwise the
   edit returns `font-error`, nothing is stored and the panel offers “Thử lại”. Text is measured
   with `measureText` ink bounds, so stacked diacritics (Nguyễn, Bảo Ngọc, Đậu) fit the box.
-- Uploads become local object URLs (no base64 in state, nothing sent to a server). An object URL
+- Uploads become local object URLs (no base64 in state; the file is sent only when ordering). An object URL
   is revoked when its image is replaced or removed, when its item is removed (any path — cleanup
   watches the selection), when a superseded or failed load finishes, and when the page unmounts.
   Preset URLs are bundled assets and are never revoked.
@@ -313,16 +326,14 @@ designs.textLayoutOf(content) / imageOf(source) / productImageState(product) // 
 | Rule       | Value                                   | Why                                                                             |
 | ---------- | --------------------------------------- | ------------------------------------------------------------------------------- |
 | Types      | PNG, JPEG, WebP (by file signature)     | SVG/GIF and renamed files are refused                                           |
-| File size  | ≤ 10 MB                                 | read fully in memory for validation                                             |
+| File size  | ≤ 5 MB (5 MiB)                          | the API upload limit (`UPLOAD_MAX_BYTES`); read fully in memory for validation  |
 | Dimensions | ≤ 4096 px per side and ≤ 4096 × 4096 px | a decoded 4096² image is ~64 MB RGBA; iOS Safari limits canvas area to ~16.7 MP |
 
 Dimensions are read from the file header before decoding, and checked again after decoding.
 
-### Provisional catalog and image limitations
+### Image limitations
 
-- Zones are estimates placed by eye on the current PNGs (`suit` has two: “Ngực áo”, “Thân dưới”);
-  none are workshop-approved.
-- Product images are transparent PNG cut-outs, so the set view and the export composite them on the
+- Product images are transparent cut-outs, so the set view and the export composite them on the
   background. Each item's layout box is still its **whole image rectangle** (transparent margins
   included), so garments look smaller than their boxes; sizing from the visible (alpha) bounds
   would be a separate decision.
@@ -388,9 +399,10 @@ composition.issues / status // 'empty' | 'loading' | 'ready' | 'incomplete'
   `COMPOSITION.placeholderAspect`, until decoded); visual size `s = displayScale`, taken as the
   geometric-mean side `√(width·height)`: `width = s·√a`, `height = s/√a`. One factor `u` scales all
   boxes, so displayScale ratios hold and nothing is distorted. These are relative display sizes,
-  not physical measurements (current values are provisional estimates; no centimetres exist yet).
-- Order: `COMPOSITION.categoryPriority` (shirt 2, towel 1, others 0; configuration, not product
-  ids), then larger visual size, then add order.
+  not physical measurements (values are set per color through the admin API; no centimetres exist).
+- Order: `COMPOSITION.categoryPriority` keyed by **category slug** (ids differ per database; empty
+  until the real slugs are known, so every category has priority 0), then larger visual size, then
+  add order.
 - Every split of that order into consecutive rows is tried (≤ 512 for 10 items). Each gets the
   largest `u` that fits all rows inside the composition minus padding (4% of the shorter side)
   with gaps (2.5%), capped so the tallest item uses at most 75% of the usable height. Score =
@@ -420,11 +432,9 @@ composition.issues / status // 'empty' | 'loading' | 'ready' | 'incomplete'
 
 ### Assets still needed for visual acceptance
 
-The set view and the export work with the current files, and the product images are now real
-transparent cut-outs. It is still **not** visually accepted: the background and the preset image
-(`designs/icon.jpeg`, an opaque JPEG that shows as a grey box on a garment) carry marks or opaque
-backgrounds, and approved backgrounds, verified display scales, embroidery zones and thread colors
-are still needed before judging the look.
+The set view and the export work with images from the API. Visual acceptance still needs approved
+backgrounds and preset images (transparent where they sit on a garment), verified display scales,
+embroidery zones and thread colors entered through the admin API.
 
 ## Downloading the image (Phase 5)
 
@@ -514,13 +524,13 @@ not tested.
 
 ### Known limits and provisional data
 
-- Product images are transparent PNGs and appear in the file with transparency composited on the
-  chosen background. Functional acceptance is done; **visual acceptance is not**: approved
-  backgrounds and preset images, embroidery zones and `displayScale` values are still needed.
+- Product images are transparent cut-outs composited on the chosen background. Functional
+  acceptance is done; **visual acceptance is not** (see above).
 - The background is drawn with default image smoothing; very large uploaded images drawn small
   may look slightly aliased.
-- A canvas that the browser marks tainted cannot be exported; images here are same-origin/blob so
-  this should not occur. There is no proxy or server fallback by design.
+- A canvas that the browser marks tainted cannot be exported. API images are loaded with
+  `crossOrigin = "anonymous"`, so the API must send CORS headers for the client origin (it does for
+  origins in `CORS_ORIGINS`). There is no proxy or server fallback by design.
 - Reloading the page loses the whole set and its designs.
 
 ## Site shell and routes (home page, phase H1)
@@ -530,10 +540,13 @@ Code: [router.ts](apps/client/src/router.ts), [features/site](apps/client/src/fe
 
 - Routing uses `vue-router` (history mode, `base` from Vite's `BASE_URL`; in development the app is
   served under `http://localhost:5173/b3_clothing_simulator/`).
-- Routes: `/` home, `/thiet-ke` the design tool (loaded on demand, no site footer), and one shared
-  “coming soon” page for menu targets that are not built (`/san-pham`, `/bo-suu-tap`,
-  `/tra-cuu-don-hang`, `/gio-hang`, `/lien-he`, `/ve-chung-toi`); unknown paths show a not-found
-  page. Route `meta.title` sets the document title (`<page> – <default title>`).
+- Routes: `/` home, `/thiet-ke` the design tool (loaded on demand, no site footer;
+  `?mau=<color id>` starts the set with that color), `/san-pham`, `/san-pham/:slug`,
+  `/bo-suu-tap`, `/bo-suu-tap/:slug` (see [Catalog pages](#catalog-pages-i3)), `/don-hang/:id`
+  (see [Ordering](#ordering-i4)), `/gio-hang` redirects to the design tool (the set being designed
+  is the cart), and one shared “coming soon” page for menu targets that are not built
+  (`/tra-cuu-don-hang`, `/lien-he`, `/ve-chung-toi`); unknown paths show a not-found page. Route `meta.title` sets the
+  document title (`<page> – <default title>`).
 - Layout (`SiteLayout`): skip link, dismissible announcement bar (session only), header (logo,
   4-item menu, cart link, hamburger menu below 768 px that closes with Escape/navigation and returns
   focus), `<main>` (focused after each navigation) and a footer with the top part only.
@@ -551,16 +564,22 @@ Code: [router.ts](apps/client/src/router.ts), [features/site](apps/client/src/fe
 Code: [features/home](apps/client/src/features/home) (`HomeBanner.vue`, `CommitmentsBar.vue`,
 `data/homeData.ts`, `data/assets.ts`).
 
-- **Banner** uses Swiper (`swiper/vue`, only the `A11y` and `Keyboard` modules plus the base CSS).
-  3 mock slides with a text card (title, description, button) over the image. Auto-advance
+- **Banner** (`HomeHero.vue` loads `GET public/banners`, `HomeBanner.vue` renders them) uses Swiper
+  (`swiper/vue`, only the `A11y` and `Keyboard` modules plus the base CSS). Each active banner is a
+  text card (title, optional description, “Xem chi tiết” when it has a `linkUrl`) over its image:
+  the desktop image from 640 px, the mobile one below. An internal `linkUrl` (`/…`, use client
+  paths such as `/bo-suu-tap/giang-sinh`) navigates in the app; an https one opens a new tab.
+  While loading, a block of the banner's height is reserved; with no active banner (or a failed
+  request) a short fixed introduction with “Bắt đầu thiết kế” is shown. With one banner there are
+  no arrows, dots or auto-advance. Auto-advance
   (6 s) uses our own timer: off when the visitor prefers reduced motion, held while the banner is
   hovered or contains focus, restarted after every slide change, and always stoppable with the
   visible pause button. Arrows (from 640 px), dots, swipe and the arrow keys also navigate. Slides
   that are not shown are `inert`, so their buttons are not reachable with Tab.
 - **Commitments** are 4 fixed items written in code (not backend data), without delivery or
   shipping claims; the wording is to be confirmed.
-- **Images** are found by file name without extension in `apps/client/src/assets/home/`
-  (`banner-1`, `banner-2`, `banner-3`; png/jpg/jpeg/webp/avif). A missing file shows a placeholder.
+- **Images** of the fixed sections (process steps) are found by file name without extension in
+  `apps/client/src/assets/home/` (png/jpg/jpeg/webp/avif). A missing file shows a placeholder.
   A file directly in `assets/home/` overrides one of the same name in `assets/home/_reference/`.
 - **Reference images:** `assets/home/_reference/` is **git-ignored** and holds third-party images
   used only for local mockups. They are never committed, so CI and the GitHub Pages deploy build
@@ -572,16 +591,34 @@ Code: [features/home](apps/client/src/features/home) (`HomeBanner.vue`, `Commitm
 Code: `features/home/components/FeaturedProducts.vue`, `SeasonalCollections.vue`,
 `SectionHeading.vue`; data in `features/home/data/homeData.ts`.
 
-- **Featured products** are read from the design catalog by id (`featuredProductIds`; ids that are
-  not in the catalog are skipped, nothing is copied). Each card is one `Link` to `/thiet-ke` with the
-  product image (transparent PNG), name and category. No prices are shown because no price data
-  exists. 2 columns on phones, 3 from 768 px.
-- **Seasonal collections** (`seasonalCollections`, mock): Giáng sinh, Tết, Trung thu, Mùa hè, Mùa thu,
-  Mùa đông. Each card links to `/bo-suu-tap/<slug>`, a route that shares the “coming soon” page
-  for now (the “Bộ sưu tập” menu item stays highlighted). Cards use an image named by `image` (file
-  in `assets/home/`) or a placeholder with an icon; the name sits on a light strip so it stays
-  readable over any image. 2 columns on phones, 3 from 768 px, 6 from 1024 px.
+- **Featured products** are the first 6 public products from `GET public/products` in the admin's
+  order (the API has no featured flag for products), shown with the shared `ProductCard` and a
+  “Xem tất cả sản phẩm” link. Loading text, an error with “Thử lại”, and the section is hidden when
+  there are no products. 2 columns on phones, 3 from 768 px.
+- **Seasonal collections** are the featured active collections (`GET public/collections?featured=true`,
+  all pages) as `CollectionCard`s, plus “Xem tất cả bộ sưu tập”. A collection without an image shows
+  a placeholder with a gift icon; the name sits on a light strip so it stays readable over any
+  image. Hidden when there is none. 2 columns on phones, 3 from 768 px, 6 from 1024 px.
 - Section titles are `h2` with `aria-labelledby` on the section.
+
+## Catalog pages (I3)
+
+Code: [features/catalog](apps/client/src/features/catalog) (`ProductCard`, `CollectionCard`,
+`ProductList`, `formatPrice`) and the pages `ProductsPage`, `ProductDetailPage`, `CollectionsPage`,
+`CollectionPage`. Lists that grow use `usePagedList` (“Xem thêm” loads the next page of 24; a
+failed page keeps the shown items and offers “Thử lại”).
+
+- `/san-pham`: category filter (buttons from `public/categories`) and name search; both are kept in
+  the URL (`?danh-muc=<category slug>&q=<text>`) so a filtered list can be shared or reloaded.
+- `/san-pham/:slug`: display photo of the chosen color, category, name, price, description, color
+  choice (swatch from `hexCode` when set), the available sizes (chosen when ordering, I4) and
+  “Thiết kế với màu này”, which opens `/thiet-ke?mau=<color id>`. Unknown or hidden products show
+  “Không tìm thấy sản phẩm”.
+- `/bo-suu-tap`: every active collection. `/bo-suu-tap/:slug`: name, description and its public
+  products; unknown or inactive collections show “Không tìm thấy bộ sưu tập”.
+- Prices are whole VND from the API, formatted with `Intl.NumberFormat('vi-VN')` (“199.000 ₫”).
+- Every page distinguishes loading, error with retry, empty and not found (`notFound` of
+  `useRemoteData`/`usePagedList` is true for an API 404).
 
 ### Process and reviews (phase H4)
 
@@ -625,12 +662,89 @@ Code: `features/home/components/ProcessSection.vue`, `ReviewsSection.vue`; data 
   any slide change, hold on hover/focus, pause/play, reduced motion, unmount cleanup; Swiper is
   replaced by a small stub there).
 
+## Ordering (I4)
+
+Code: [features/checkout](apps/client/src/features/checkout) and
+[pages/OrderPage.vue](apps/client/src/pages/OrderPage.vue); API calls in
+[api/orders.ts](apps/client/src/api/orders.ts). Ordering is a **contact request**: no payment; the
+shop quotes the embroidery fee and confirms by phone.
+
+- “Đặt hàng” in the design tool header (step 4) replaces the design area with the checkout; the set
+  and its designs stay in the page state, “Quay lại thiết kế” returns to them unchanged. There is
+  no separate cart; reloading still loses the set.
+- Checkout: the items (with “Có thêu/Không thêu” and the price from `public/products/:slug`), a
+  size `Select` per item whose product has sizes (required), name, phone, address and an optional
+  note, and a summary: subtotal, embroidery fee “Báo giá sau”. Fields are checked with the API's
+  rules ([customer.ts](apps/client/src/features/checkout/customer.ts): phone normalised to
+  `0…`, mobile or landline); API field errors are mapped back to the fields in Vietnamese.
+- Sending ([submitOrder.ts](apps/client/src/features/checkout/submitOrder.ts)), with the set locked
+  like the image download: guest session (reused from `sessionStorage` while it has 10 minutes
+  left, else created) → upload each customer image once (`customer_image`) → a JPEG preview of the
+  set (`ORDER_PREVIEW`: 1600 px, quality 0.88; skipped if it cannot be made) as `design_preview` →
+  `POST public/orders` with `source.type = "design"` and an `Idempotency-Key`.
+  [orderPayload.ts](apps/client/src/features/checkout/orderPayload.ts) maps the designer state:
+  `instanceId` → `clientItemId`, zone id → `zoneKey`, upload → server `fileId`, preset → `presetId`.
+- Retries: the same request reuses the uploaded files and the same key, so “gửi lại” after a lost
+  response returns the existing order instead of a second one; a changed request gets a new key.
+  A rejected session (401) creates a new one and uploads again; uploads that expired (422) are
+  uploaded again — each once per attempt.
+- `/don-hang/:id`: order code, status, items (color, size, embroidery summary, price), subtotal,
+  embroidery fee “Chờ báo giá” and total “Sau khi báo phí thêu” while not quoted (`null` is never
+  shown as a final amount), contact details and the private preview (read with the token, shown as
+  an object URL revoked on leave). Only the tab's guest session can read it (24 hours); without it
+  the page confirms the order code saved by this tab, or explains that the order cannot be shown.
+- Customer images are now limited to 5 MB to match the API.
+
+## Admin app (I5)
+
+`yarn dev:admin` → <http://localhost:5174> (the API must list `http://localhost:5174` in
+`CORS_ORIGINS`). Base URL: `VITE_API_BASE_URL` as for the client
+([apps/admin/.env.example](apps/admin/.env.example)). `yarn build:admin` builds `apps/admin/dist`;
+the GitHub Pages workflow builds the client only (`yarn build:client`). No admin deployment exists.
+
+- **UI:** `@lituta/ui` first (Button, Select, FormField, Image, Typography, Link, Row/Col, Flex,
+  EmptyState); Ant Design Vue 4.2 for what it lacks: Table, Modal, Drawer, Menu, Input/InputNumber/
+  Textarea/Switch/Checkbox, RangePicker, Timeline, Tag, Spin and messages. The Ant theme
+  ([theme.ts](apps/admin/src/theme.ts)) is read from the shared tokens at runtime; locale `vi_VN`.
+- **HTTP client** ([httpClient.ts](apps/admin/src/api/httpClient.ts)): `get`, `post`, `put`,
+  `patch`, `delete`, `upload` (multipart, one file part `file` plus optional text fields), `blob`
+  (private images) and `getAll` (every page). Unwraps `{ code, data }`, turns failures into
+  `ApiError` (`kind`, `status`, `code`, `requestId`, field `errors`); `fieldErrors()` and the
+  Vietnamese `errorMessage()` feed forms and toasts. Authenticated calls send the access token and,
+  on a 401, refresh once and repeat the request once; `anonymous` calls (login/refresh/logout)
+  never do. Endpoints are grouped in [resources.ts](apps/admin/src/api/resources.ts), DTO shapes in
+  [types.ts](apps/admin/src/api/types.ts).
+- **Session** ([auth/session.ts](apps/admin/src/auth/session.ts)): access token in memory only;
+  the rotating refresh token in `localStorage` (`lituta.admin.refreshToken`) so a reload or new tab
+  stays signed in. Refreshes are single-flight; if another tab already rotated the token, its newer
+  token is tried once; a rejected refresh signs out and the router returns to `/dang-nhap?redirect=…`
+  (in-app paths only). A refresh that fails offline keeps the session. Logout revokes on the server
+  (best effort) and always clears locally.
+- **Pages:** orders (search by code/name/phone, status, date range; detail with items, embroidery
+  text/colors, customer images and preview read with the token, quote with `expectedRevision`,
+  allowed status changes, history; a 409 reloads the order), products (draft → colors with display
+  and transparent design images → sizes → publish), color zones, categories, collections and
+  members, banners (link rule checked as in the API), backgrounds, ready-made images, item limits
+  and default background.
+- **Zone editor** ([ColorDesignerDrawer.vue](apps/admin/src/features/designer/ColorDesignerDrawer.vue)):
+  zones drawn over the color's design image in image fractions (top-left origin): drag to move,
+  drag the corner to resize, arrow keys (Shift = resize) or number inputs; each zone is saved on
+  its own, the key cannot change after saving, max 10 per color, rules as in the API
+  ([zoneGeometry.ts](apps/admin/src/features/designer/zoneGeometry.ts)). The designer flag and
+  display scale are saved separately (the API requires a saved zone to turn it on).
+- Uploads ([ImageUploadField.vue](apps/admin/src/components/ImageUploadField.vue)) go to
+  `POST /admin/files/upload` as soon as a file is picked (JPEG/PNG/WebP ≤ 5 MB; design images
+  PNG/WebP only); the form sends the file id. An upload that is not saved within 5 minutes expires.
+
 ## Not implemented yet
 
-Exporting other formats or sizes, sharing/saving to the photo library, PDF, manual moving/resizing
-of items in the set,
-saving a layout, applying a design to the whole set, undo/redo, more than one text and one image
-per zone, multi-select and layer reordering, choosing fonts, thread/fabric/lighting simulation,
-background removal, persistence of the selection or designs, customer zone editing, API or mock API, admin app,
-Docker/CI/deploy. Out of V1 scope entirely: accounts, cart, payment, ordering, uploading logos to
-a server, saving designs across reloads, realistic thread simulation.
+All API phases I1–I5 are done (see [docs/api-integration-plan.md](docs/api-integration-plan.md)).
+Saving the set as a draft across reloads (the API supports it), an order lookup page, admin
+deployment and admin account management in the UI (the API only has console commands) are not
+built.
+
+Not planned: exporting other formats or sizes, sharing/saving to the photo library, PDF, manual
+moving/resizing of items in the set, saving a layout, applying a design to the whole set,
+undo/redo, more than one text and one image per zone, multi-select and layer reordering, choosing
+fonts, thread/fabric/lighting simulation, background removal, customer zone editing, customer
+accounts, payment.
