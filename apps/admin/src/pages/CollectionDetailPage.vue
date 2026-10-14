@@ -1,0 +1,285 @@
+<script setup lang="ts">
+import { ref, shallowRef, watch } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
+import { Pencil, Plus, Trash2 } from '@lucide/vue'
+import {
+  InputNumber,
+  Select as AntSelect,
+  Spin,
+  Table,
+  Tag,
+  type TableColumnType,
+} from 'ant-design-vue'
+import { Button, EmptyState, Flex, Image, Link, Typography } from '@lituta/ui'
+import { errorMessage } from '../api/httpClient'
+import { collectionsApi, productsApi } from '../api/resources'
+import type { Collection, CollectionMember } from '../api/types'
+import PageHeader from '../components/PageHeader.vue'
+import { useFeedback } from '../composables/useFeedback'
+import { usePagedTable } from '../composables/usePagedTable'
+import CollectionFormModal from '../features/catalog/CollectionFormModal.vue'
+import { formatPrice } from '../utils/format'
+
+const props = defineProps<{ id: string }>()
+const router = useRouter()
+const feedback = useFeedback()
+
+const collection = shallowRef<Collection | null>(null)
+const loadError = ref<string | null>(null)
+async function load() {
+  loadError.value = null
+  try {
+    collection.value = await collectionsApi.get(props.id)
+  } catch (error) {
+    loadError.value = errorMessage(error)
+  }
+}
+
+const members = usePagedTable(
+  (page, pageSize) => collectionsApi.members(props.id, { page, pageSize }),
+  50,
+)
+watch(
+  () => props.id,
+  () => {
+    void load()
+    void members.reload(true)
+  },
+  { immediate: true },
+)
+
+const editing = ref(false)
+const orderDrafts = ref<Record<string, number | undefined>>({})
+watch(members.rows, (rows) => {
+  orderDrafts.value = Object.fromEntries(rows.map((row) => [row.product.id, row.sortOrder]))
+})
+
+// --- add a product (searched on the server) ---
+const searchOptions = ref<{ label: string; value: string }[]>([])
+const searching = ref(false)
+const picked = ref<string | undefined>()
+const adding = ref(false)
+let searchRequest = 0
+
+async function search(q: string) {
+  const current = ++searchRequest
+  searching.value = true
+  try {
+    const page = await productsApi.list({ q: q.trim() || undefined, pageSize: 20 })
+    if (current !== searchRequest) return
+    searchOptions.value = page.entries.map((product) => ({
+      label: `${product.name}${product.isActive ? '' : ' (nháp/ẩn)'}`,
+      value: product.id,
+    }))
+  } catch (error) {
+    feedback.error(error)
+  } finally {
+    if (current === searchRequest) searching.value = false
+  }
+}
+void search('')
+
+async function add() {
+  if (!picked.value) return
+  adding.value = true
+  try {
+    await collectionsApi.addMember(props.id, picked.value, members.rows.value.length)
+    picked.value = undefined
+    feedback.success('Đã thêm sản phẩm.')
+    void members.reload()
+    void load()
+  } catch (error) {
+    feedback.error(error)
+  } finally {
+    adding.value = false
+  }
+}
+
+async function saveOrder(member: CollectionMember) {
+  try {
+    await collectionsApi.updateMember(
+      props.id,
+      member.product.id,
+      orderDrafts.value[member.product.id] ?? 0,
+    )
+    void members.reload()
+  } catch (error) {
+    feedback.error(error)
+  }
+}
+
+function removeMember(member: CollectionMember) {
+  const collectionId = props.id
+  feedback.confirmDelete(
+    `Bỏ “${member.product.name}” khỏi bộ sưu tập?`,
+    'Sản phẩm vẫn còn trong danh mục.',
+    async () => {
+      try {
+        await collectionsApi.removeMember(collectionId, member.product.id)
+        void members.reload()
+        void load()
+      } catch (error) {
+        feedback.error(error)
+      }
+    },
+  )
+}
+
+function removeCollection() {
+  if (!collection.value) return
+  const current = collection.value
+  feedback.confirmDelete(
+    `Xóa bộ sưu tập “${current.name}”?`,
+    'Sản phẩm không bị ảnh hưởng.',
+    async () => {
+      try {
+        await collectionsApi.remove(current.id)
+        void router.push('/bo-suu-tap')
+      } catch (error) {
+        feedback.error(error)
+      }
+    },
+  )
+}
+
+const columns: TableColumnType<CollectionMember>[] = [
+  { title: 'Sản phẩm', key: 'product' },
+  { title: 'Giá', key: 'price', width: 130 },
+  { title: 'Trang khách', key: 'public', width: 130 },
+  { title: 'Thứ tự', key: 'sortOrder', width: 200 },
+  { title: '', key: 'actions', width: 80, align: 'right' },
+]
+</script>
+
+<template>
+  <PageHeader
+    :title="collection?.name ?? 'Bộ sưu tập'"
+    :description="
+      collection
+        ? `/${collection.slug} · ${collection.isActive ? 'Đang hiện' : 'Đang ẩn'}${collection.isFeatured ? ' · Nổi bật' : ''}`
+        : undefined
+    "
+    :back="{ to: '/bo-suu-tap', label: 'Danh sách bộ sưu tập' }"
+  >
+    <template v-if="collection" #actions>
+      <Button variant="default" @click="editing = true">
+        <template #icon><Pencil /></template>
+        Sửa
+      </Button>
+      <Button variant="text" @click="removeCollection">
+        <template #icon><Trash2 /></template>
+        Xóa
+      </Button>
+    </template>
+  </PageHeader>
+
+  <EmptyState v-if="loadError" title="Chưa tải được bộ sưu tập" :description="loadError">
+    <template #action>
+      <Button @click="load()">Thử lại</Button>
+    </template>
+  </EmptyState>
+
+  <Spin v-else :spinning="!collection">
+    <Flex vertical gap="large">
+      <Flex v-if="collection?.image || collection?.description" gap="middle" align="start">
+        <Image
+          v-if="collection?.image"
+          :src="collection.image.url"
+          :alt="collection.name"
+          class="h-32 w-24 shrink-0 rounded border bg-muted"
+          fit="cover"
+        />
+        <Typography v-if="collection?.description" class="whitespace-pre-line">
+          {{ collection.description }}
+        </Typography>
+      </Flex>
+
+      <section aria-labelledby="members-heading" class="rounded-xl border bg-card p-4">
+        <Flex vertical gap="middle">
+          <Typography id="members-heading" as="h2" variant="subheading">
+            Sản phẩm ({{ collection?.productCount ?? 0 }})
+          </Typography>
+          <form class="max-w-xl" @submit.prevent="add">
+            <Flex gap="small">
+              <AntSelect
+                v-model:value="picked"
+                show-search
+                :filter-option="false"
+                :options="searchOptions"
+                :loading="searching"
+                placeholder="Tìm sản phẩm để thêm"
+                aria-label="Sản phẩm cần thêm"
+                class="min-w-0 flex-1"
+                @search="search"
+              />
+              <Button html-type="submit" :disabled="!picked" :loading="adding">
+                <template #icon><Plus /></template>
+                Thêm
+              </Button>
+            </Flex>
+          </form>
+
+          <Table
+            row-key="createdAt"
+            :columns="columns"
+            :data-source="members.rows.value"
+            :loading="members.loading.value"
+            :pagination="members.pagination.value"
+            :scroll="{ x: 700 }"
+            @change="members.onChange"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'product'">
+                <Link :as="RouterLink" :to="`/san-pham/${record.product.id}`">{{
+                  record.product.name
+                }}</Link>
+              </template>
+              <template v-else-if="column.key === 'price'">{{
+                formatPrice(record.product.price)
+              }}</template>
+              <template v-else-if="column.key === 'public'">
+                <Tag :color="record.product.isPublic ? 'green' : 'default'">
+                  {{ record.product.isPublic ? 'Đang hiện' : 'Không hiện' }}
+                </Tag>
+              </template>
+              <template v-else-if="column.key === 'sortOrder'">
+                <Flex gap="small" align="center">
+                  <InputNumber
+                    v-model:value="orderDrafts[record.product.id]"
+                    :min="0"
+                    :max="1000000"
+                    :precision="0"
+                    :aria-label="`Thứ tự ${record.product.name}`"
+                    class="w-24"
+                  />
+                  <Button
+                    size="small"
+                    variant="default"
+                    :disabled="orderDrafts[record.product.id] === record.sortOrder"
+                    @click="saveOrder(record as CollectionMember)"
+                  >
+                    Lưu
+                  </Button>
+                </Flex>
+              </template>
+              <template v-else-if="column.key === 'actions'">
+                <Button
+                  size="small"
+                  variant="text"
+                  @click="removeMember(record as CollectionMember)"
+                  >Bỏ</Button
+                >
+              </template>
+            </template>
+          </Table>
+        </Flex>
+      </section>
+    </Flex>
+  </Spin>
+
+  <CollectionFormModal
+    v-model:open="editing"
+    :collection="collection"
+    @saved="(saved) => (collection = saved)"
+  />
+</template>

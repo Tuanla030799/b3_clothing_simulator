@@ -11,14 +11,17 @@
   },
   "scripts": {
     "dev": "yarn workspace @lituta/client dev",
-    "build": "yarn workspace @lituta/client build",
+    "dev:admin": "yarn workspace @lituta/admin dev",
+    "build": "yarn workspace @lituta/client build && yarn workspace @lituta/admin build",
+    "build:client": "yarn workspace @lituta/client build",
+    "build:admin": "yarn workspace @lituta/admin build",
     "preview": "yarn workspace @lituta/client preview",
-    "typecheck": "yarn workspace @lituta/ui typecheck && yarn workspace @lituta/client typecheck",
+    "typecheck": "yarn workspace @lituta/ui typecheck && yarn workspace @lituta/client typecheck && yarn workspace @lituta/admin typecheck",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "test": "yarn workspace @lituta/ui test && yarn workspace @lituta/client test",
+    "test": "yarn workspace @lituta/ui test && yarn workspace @lituta/client test && yarn workspace @lituta/admin test",
     "check": "yarn typecheck && yarn lint && yarn format:check && yarn test && yarn build"
   },
   "devDependencies": {

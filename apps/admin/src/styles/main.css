@@ -1,0 +1,4 @@
+@import '@lituta/ui/styles.css';
+
+/* Admin sources; the UI package registers its own. */
+@source '../';
