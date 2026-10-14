@@ -8,14 +8,13 @@ import {
   watch,
   type InjectionKey,
 } from 'vue'
-import { backgrounds as catalogBackgrounds, DEFAULT_BACKGROUND_ID } from './data/catalog'
 import { COMPOSITION } from './data/designOptions'
 import type { LayerKind } from './design'
 import { decodeImage as decodeImageDefault, type DecodedImage } from './imageFiles'
 import { captureSceneInput } from './sceneInput'
 import { layoutSet, type LayoutItem, type SetLayout } from './setLayout'
 import { buildSetScene } from './setScene'
-import type { Background, Product } from './types'
+import type { Background, Category, Product } from './types'
 import type { Designs } from './useDesigns'
 import type { Selection } from './useSelection'
 
@@ -54,8 +53,11 @@ export type ExportBlockCode =
 export type ExportReadiness = { ok: true } | { ok: false; code: ExportBlockCode }
 
 export interface CompositionOptions {
-  backgrounds?: Background[]
-  defaultBackgroundId?: string
+  backgrounds?: readonly Background[]
+  /** Shown first in the set view; when missing or unknown the first background is used. */
+  defaultBackgroundId?: string | null
+  /** Used to look up the layout priority of a category by its slug. */
+  categories?: readonly Category[]
   decodeImage?: (url: string) => Promise<DecodedImage>
 }
 
@@ -64,8 +66,9 @@ export function useComposition(
   designs: Designs,
   options: CompositionOptions = {},
 ) {
-  const backgrounds = options.backgrounds ?? catalogBackgrounds
-  const defaultBackgroundId = options.defaultBackgroundId ?? DEFAULT_BACKGROUND_ID
+  const backgrounds = options.backgrounds ?? []
+  const defaultBackgroundId = options.defaultBackgroundId ?? null
+  const categories = options.categories ?? []
   const decodeImage = options.decodeImage ?? decodeImageDefault
 
   const mode = ref<ViewMode>('item')
@@ -121,12 +124,17 @@ export function useComposition(
     return width && height ? width / height : COMPOSITION.placeholderAspect
   }
 
+  function priorityOf(categoryId: string): number {
+    const slug = categories.find((category) => category.id === categoryId)?.slug
+    return (slug && COMPOSITION.categoryPriority[slug]) || 0
+  }
+
   const layoutItems = computed<LayoutItem[]>(() =>
     selection.entries.value.map(({ item, product }) => ({
       instanceId: item.instanceId,
       aspectRatio: aspectOf(product),
       displayScale: product.displayScale,
-      priority: COMPOSITION.categoryPriority[product.categoryId] ?? 0,
+      priority: priorityOf(product.categoryId),
     })),
   )
 

@@ -17,6 +17,26 @@ describe('router and site links', () => {
     }
   })
 
+  it('opens product and collection pages by slug', () => {
+    expect(router.resolve('/san-pham').name).toBe('products')
+    expect(router.resolve('/san-pham/bodysuit-cotton')).toMatchObject({
+      name: 'product',
+      params: { slug: 'bodysuit-cotton' },
+    })
+    expect(router.resolve('/bo-suu-tap').name).toBe('collections')
+    expect(router.resolve('/bo-suu-tap/giang-sinh')).toMatchObject({
+      name: 'collection',
+      params: { slug: 'giang-sinh' },
+    })
+  })
+
+  it('passes the color chosen on a product page to the design tool', () => {
+    const route = router.resolve('/thiet-ke?mau=color-1')
+    const props = route.matched[0]!.props.default as (r: typeof route) => object
+    expect(props(route)).toEqual({ initialColorId: 'color-1' })
+    expect(props(router.resolve('/thiet-ke'))).toEqual({ initialColorId: undefined })
+  })
+
   it('sends unknown paths to the not-found page', () => {
     expect(router.resolve('/khong-ton-tai').name).toBe('not-found')
   })

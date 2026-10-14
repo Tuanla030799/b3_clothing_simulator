@@ -1,5 +1,5 @@
 import { computed, inject, onScopeDispose, provide, ref, type InjectionKey } from 'vue'
-import { EXPORT } from './data/designOptions'
+import { EXPORT, ORDER_PREVIEW } from './data/designOptions'
 import {
   createDownloader,
   ExportError,
@@ -103,6 +103,50 @@ export function useExport(
     if (message) noticeTimer = setTimeout(() => (notice.value = null), 8000)
   }
 
+  /**
+   * Snapshot of the set as shown now, rendered offscreen. The caller holds the edit lock so the
+   * state cannot change between the checks and the snapshot.
+   */
+  async function renderCurrentSet(options: {
+    longEdge: number
+    mimeType?: string
+    quality?: number
+  }): Promise<{ blob: Blob; width: number; height: number }> {
+    // Confirm the lettering font for every text now; never render with a fallback font.
+    const texts = new Set<string>()
+    for (const zones of Object.values(designs.designs.value)) {
+      for (const zone of Object.values(zones)) if (zone.text) texts.add(zone.text.content)
+    }
+    for (const content of texts) {
+      if (!(await deps.loadFont(content))) throw new ExportError('font')
+    }
+
+    const readiness = composition.exportReadiness.value
+    if (!readiness.ok) throw new ExportError('not-ready', readiness.code)
+    const input = captureSceneInput(selection, designs, {
+      size: composition.size.value,
+      background: composition.background.value?.image ?? null,
+      placements: composition.layout.value.placements,
+    })
+    const scene = buildSetScene(input)
+    if (!scene.complete) throw new ExportError('resource')
+    if (composition.backgrounds.length > 0 && !scene.background) {
+      throw new ExportError('resource')
+    }
+
+    const size = exportSize(scene.size, options.longEdge)
+    if (!size) throw new ExportError('invalid-size')
+
+    const blob = await deps.render({
+      scene,
+      size,
+      fallbackFill: deps.fallbackFill(),
+      mimeType: options.mimeType,
+      quality: options.quality,
+    })
+    return { blob, ...size }
+  }
+
   async function run(): Promise<ExportOutcome> {
     const blocked = block.value
     if (blocked) return { status: 'blocked', reason: blocked.code }
@@ -115,40 +159,13 @@ export function useExport(
     setNotice(null)
 
     try {
-      // Confirm the lettering font for every text now; never render with a fallback font.
-      const texts = new Set<string>()
-      for (const zones of Object.values(designs.designs.value)) {
-        for (const zone of Object.values(zones)) if (zone.text) texts.add(zone.text.content)
-      }
-      for (const content of texts) {
-        if (!(await deps.loadFont(content))) throw new ExportError('font')
-      }
-      if (disposed) return { status: 'cancelled' }
-
-      // The lock keeps the state still; check again anyway, then take the snapshot.
-      const readiness = composition.exportReadiness.value
-      if (!readiness.ok) throw new ExportError('not-ready', readiness.code)
-      const input = captureSceneInput(selection, designs, {
-        size: composition.size.value,
-        background: composition.background.value?.image ?? null,
-        placements: composition.layout.value.placements,
-      })
-      const scene = buildSetScene(input)
-      if (!scene.complete) throw new ExportError('resource')
-      if (composition.backgrounds.length > 0 && !scene.background) {
-        throw new ExportError('resource')
-      }
-
-      const size = exportSize(scene.size, EXPORT.longEdge)
-      if (!size) throw new ExportError('invalid-size')
-
-      const blob = await deps.render({ scene, size, fallbackFill: deps.fallbackFill() })
+      const rendered = await renderCurrentSet({ longEdge: EXPORT.longEdge })
       if (disposed) return { status: 'cancelled' }
 
       const fileName = exportFileName(deps.now())
-      deps.downloader.download(blob, fileName)
+      deps.downloader.download(rendered.blob, fileName)
       setNotice('Đã bắt đầu tải ảnh.')
-      return { status: 'started', fileName, width: size.width, height: size.height }
+      return { status: 'started', fileName, width: rendered.width, height: rendered.height }
     } catch (caught) {
       const failure = toExportError(caught)
       if (!disposed) error.value = failure
@@ -172,6 +189,16 @@ export function useExport(
     error,
     notice,
     run,
+    /**
+     * JPEG reference picture of the set for an order (ORDER_PREVIEW). The caller must hold
+     * `selection.lock`; the set view resources must be loaded (composition in set mode).
+     */
+    renderPreview: () =>
+      renderCurrentSet({
+        longEdge: ORDER_PREVIEW.longEdge,
+        mimeType: ORDER_PREVIEW.mimeType,
+        quality: ORDER_PREVIEW.quality,
+      }).then((result) => result.blob),
     clearError() {
       error.value = null
     },

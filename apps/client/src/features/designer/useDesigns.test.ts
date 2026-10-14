@@ -32,7 +32,8 @@ const shirt: Product = {
   image: { src: 'product.png' },
   displayScale: 1,
   embroideryZones: [zone('chest'), zone('back')],
-  provisional: true,
+  productId: 'model',
+  productSlug: 'model',
 }
 
 const decoded = (width = 200, height = 100): DecodedImage => ({
@@ -70,7 +71,13 @@ function setup(overrides: Partial<DesignDeps> = {}) {
     const selection = useSelection({
       catalog: { products: [shirt], rules: { maxItems: 10, categoryLimits: {} } },
     })
-    return { selection, designs: useDesigns(selection, deps) }
+    return {
+      selection,
+      designs: useDesigns(selection, {
+        ...deps,
+        presets: [{ id: 'icon', name: 'Icon', image: { src: 'icon.png' } }],
+      }),
+    }
   })!
   const file = (name = 'logo.png') => new File([new Uint8Array([1])], name)
   /** Resolves the decode of an object URL once it has been requested. */

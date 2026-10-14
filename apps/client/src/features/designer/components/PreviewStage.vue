@@ -2,7 +2,7 @@
 import { computed, defineAsyncComponent } from 'vue'
 import { Shirt } from '@lucide/vue'
 import { Button, EmptyState, Flex, Image, Typography } from '@lituta/ui'
-import { backgrounds, categoryName, DEFAULT_BACKGROUND_ID } from '../data/catalog'
+import { injectCatalog, useCategoryName } from '../catalog'
 import { injectComposition } from '../useComposition'
 import { injectDesigns } from '../useDesigns'
 import { injectExport } from '../useExport'
@@ -14,6 +14,8 @@ import SelectionSummary from './SelectionSummary.vue'
 const DesignCanvas = defineAsyncComponent(() => import('./DesignCanvas.vue'))
 const CompositionCanvas = defineAsyncComponent(() => import('./CompositionCanvas.vue'))
 
+const catalog = injectCatalog()
+const categoryName = useCategoryName()
 const selection = injectSelection()
 const designs = injectDesigns()
 const composition = injectComposition()
@@ -26,7 +28,12 @@ const canEdit = computed(() => {
   return Boolean(product?.image.src) && designs.productImageState(product!)?.status !== 'error'
 })
 
-const background = computed(() => backgrounds.find((entry) => entry.id === DEFAULT_BACKGROUND_ID))
+// Empty state backdrop: the configured default background, else the first one.
+const background = computed(
+  () =>
+    catalog.backgrounds.find((entry) => entry.id === catalog.defaultBackgroundId) ??
+    catalog.backgrounds[0],
+)
 </script>
 
 <template>

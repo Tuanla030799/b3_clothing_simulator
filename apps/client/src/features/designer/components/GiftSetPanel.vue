@@ -2,12 +2,13 @@
 import { nextTick, useTemplateRef } from 'vue'
 import { Check, Shirt, Trash2 } from '@lucide/vue'
 import { Button, EmptyState, Flex, Image, Typography } from '@lituta/ui'
-import { categoryName } from '../data/catalog'
+import { useCategoryName } from '../catalog'
 import { injectSelection } from '../useSelection'
 
 const emit = defineEmits<{ browse: [] }>()
 
 const selection = injectSelection()
+const categoryName = useCategoryName()
 const listRef = useTemplateRef<HTMLElement>('list')
 
 /*

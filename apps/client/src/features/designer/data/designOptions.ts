@@ -31,11 +31,12 @@ export const DESIGN_FONT = {
 export type DesignFontId = typeof DESIGN_FONT.id
 
 /**
- * Upload limits. Files are decoded in the browser only, so the limits protect mobile memory:
- * a 4096×4096 RGBA bitmap already needs ~64 MB, and iOS Safari caps canvas areas near 16.7 MP.
+ * Upload limits. The size matches the API (`UPLOAD_MAX_BYTES`, 5 MiB), because the file is sent
+ * with the order. The pixel limits protect mobile memory (a 4096×4096 RGBA bitmap already needs
+ * ~64 MB, iOS Safari caps canvas areas near 16.7 MP) and stay below the API's 25 MP.
  */
 export const UPLOAD_LIMITS = {
-  maxBytes: 10 * 1024 * 1024,
+  maxBytes: 5 * 1024 * 1024,
   maxDimension: 4096,
   maxPixels: 4096 * 4096,
   /** Detected from file signatures, not from the extension or the browser-reported type. */
@@ -57,7 +58,9 @@ export const LAYER_LIMITS = {
  * - Logical composition width is fixed; height follows the decoded background aspect ratio.
  * - Without a usable background a neutral 4:3 composition is used (provisional).
  * - categoryPriority only orders items in the layout (higher = earlier rows / centre), it never
- *   changes limits or sizes.
+ *   changes limits or sizes. It is keyed by category slug (ids differ between databases); slugs
+ *   are set by the admin, so entries are added once the real slugs are known. Categories without
+ *   an entry have priority 0 and are ordered by size, then add order.
  * - Padding/gap are fractions of the shorter composition side.
  * - maxItemFill caps how tall the tallest item may be relative to the usable height, so a single
  *   item does not fill the whole background.
@@ -70,7 +73,7 @@ export const COMPOSITION = {
   paddingRatio: 0.04,
   gapRatio: 0.025,
   maxItemFill: 0.75,
-  categoryPriority: { shirt: 2, towel: 1 } as Partial<Record<string, number>>,
+  categoryPriority: {} as Partial<Record<string, number>>,
 }
 
 /*
@@ -87,4 +90,14 @@ export const EXPORT = {
   downloadUrlTtlMs: 60_000,
   /** Largest allowed side, as a guard against absurd configuration. */
   maxEdge: 8192,
+}
+
+/**
+ * Preview sent with an order: a reference picture for the shop, not the download. JPEG keeps it
+ * well under the API upload limit (5 MiB) whatever the images in the set.
+ */
+export const ORDER_PREVIEW = {
+  longEdge: 1600,
+  mimeType: 'image/jpeg',
+  quality: 0.88,
 }

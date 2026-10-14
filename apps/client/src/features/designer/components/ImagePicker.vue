@@ -2,7 +2,7 @@
 import { computed, ref, useTemplateRef, watch } from 'vue'
 import { Move, Trash2, Upload } from '@lucide/vue'
 import { Button, Flex, Image, Typography } from '@lituta/ui'
-import { designPresets } from '../data/catalog'
+import { injectCatalog } from '../catalog'
 import { UPLOAD_LIMITS } from '../data/designOptions'
 import { uploadErrorMessages } from '../imageFiles'
 import { injectDesigns, type ImageResult } from '../useDesigns'
@@ -10,6 +10,7 @@ import { injectDesigns, type ImageResult } from '../useDesigns'
 const props = defineProps<{ instanceId: string; zoneId: string }>()
 
 const designs = injectDesigns()
+const presets = injectCatalog().presets
 const image = computed(() => designs.zoneDesign(props.instanceId, props.zoneId)?.image)
 const pending = computed(() => designs.isImagePending(props.instanceId, props.zoneId))
 const fileInput = useTemplateRef<HTMLInputElement>('file')
@@ -65,8 +66,8 @@ const limitsText = `PNG, JPEG hoặc WebP · tối đa ${UPLOAD_LIMITS.maxBytes 
         Hình / logo
       </Typography>
 
-      <Flex v-if="designPresets.length" as="ul" wrap gap="small" aria-label="Hình có sẵn">
-        <li v-for="preset in designPresets" :key="preset.id">
+      <Flex v-if="presets.length" as="ul" wrap gap="small" aria-label="Hình có sẵn">
+        <li v-for="preset in presets" :key="preset.id">
           <!-- Selectable image tile (Button sizes cannot hold a thumbnail). -->
           <button
             type="button"

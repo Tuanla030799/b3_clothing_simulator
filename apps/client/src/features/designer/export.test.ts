@@ -40,16 +40,17 @@ const product = (id: string, src: string | undefined): Product => ({
   image: { src },
   displayScale: 1,
   embroideryZones: [zone],
-  provisional: true,
+  productId: 'model',
+  productSlug: 'model',
 })
 const shirt = product('shirt', 'shirt.png')
 const hat = product('hat', 'hat.png')
 const noImage = product('missing', undefined)
 
 const bgs: Background[] = [
-  { id: 'wide', name: 'Rộng', image: { src: 'wide.jpg' }, provisional: true },
-  { id: 'tall', name: 'Cao', image: { src: 'tall.jpg' }, provisional: true },
-  { id: 'broken', name: 'Hỏng', image: { src: 'broken.jpg' }, provisional: true },
+  { id: 'wide', name: 'Rộng', image: { src: 'wide.jpg' } },
+  { id: 'tall', name: 'Cao', image: { src: 'tall.jpg' } },
+  { id: 'broken', name: 'Hỏng', image: { src: 'broken.jpg' } },
 ]
 const sizes: Record<string, [number, number]> = {
   'shirt.png': [1024, 768],

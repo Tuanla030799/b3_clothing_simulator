@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { PenLine } from '@lucide/vue'
 import { Button, EmptyState, Flex, Typography } from '@lituta/ui'
-import { categoryName } from '../data/catalog'
+import { useCategoryName } from '../catalog'
 import { injectDesigns } from '../useDesigns'
 import { injectSelection } from '../useSelection'
 import ImagePicker from './ImagePicker.vue'
@@ -10,6 +10,7 @@ import LayerControls from './LayerControls.vue'
 import TextEditor from './TextEditor.vue'
 
 const selection = injectSelection()
+const categoryName = useCategoryName()
 const designs = injectDesigns()
 const active = computed(() => selection.activeEntry.value)
 const zones = computed(() => (active.value ? designs.zonesOf(active.value.product) : []))

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Swiper as SwiperInstance } from 'swiper'
 import { A11y, Keyboard } from 'swiper/modules'
@@ -7,10 +7,13 @@ import { Swiper, SwiperSlide } from 'swiper/vue'
 import { ChevronLeft, ChevronRight, Pause, Play } from '@lucide/vue'
 import { Button, Container, Flex, Image, Typography } from '@lituta/ui'
 import 'swiper/css'
-import { homeImage } from '../data/assets'
-import { bannerSlides } from '../data/homeData'
+import type { PublicBanner } from '../../../api/publicCatalog'
+
+const props = defineProps<{ banners: readonly PublicBanner[] }>()
 
 const AUTO_DELAY_MS = 6000
+/** Same as the Tailwind `sm` breakpoint: wider screens use the desktop image. */
+const DESKTOP_QUERY = '(min-width: 640px)'
 
 const router = useRouter()
 const swiper = shallowRef<SwiperInstance | null>(null)
@@ -24,19 +27,34 @@ const activeIndex = ref(0)
  */
 const reducedMotion =
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const canSlide = computed(() => props.banners.length > 1)
 const playing = ref(!reducedMotion)
 const held = ref(false)
 let timer: ReturnType<typeof setTimeout> | undefined
 
 function schedule() {
   clearTimeout(timer)
-  if (!playing.value || held.value || !swiper.value) return
+  if (!canSlide.value || !playing.value || held.value || !swiper.value) return
   timer = setTimeout(() => swiper.value?.slideNext(), AUTO_DELAY_MS)
 }
 
 watch([activeIndex, playing, held], schedule)
 onMounted(schedule)
 onBeforeUnmount(() => clearTimeout(timer))
+
+// One image per banner for the current screen size (the API always sends a mobile image).
+const desktopMedia = typeof window === 'undefined' ? null : window.matchMedia(DESKTOP_QUERY)
+const desktop = ref(desktopMedia?.matches ?? true)
+const onMediaChange = (event: MediaQueryListEvent) => (desktop.value = event.matches)
+onMounted(() => desktopMedia?.addEventListener?.('change', onMediaChange))
+onBeforeUnmount(() => desktopMedia?.removeEventListener?.('change', onMediaChange))
+const imageOf = (banner: PublicBanner) => (desktop.value ? banner.desktopImage : banner.mobileImage)
+
+// Internal paths navigate in the app; https links (validated by the API) open in a new tab.
+function open(linkUrl: string) {
+  if (linkUrl.startsWith('/')) void router.push(linkUrl)
+  else window.open(linkUrl, '_blank', 'noopener,noreferrer')
+}
 
 function onSwiper(instance: SwiperInstance) {
   swiper.value = instance
@@ -71,15 +89,17 @@ const a11y = {
       @swiper="onSwiper"
       @slide-change="(s: SwiperInstance) => (activeIndex = s.activeIndex)"
     >
-      <SwiperSlide v-for="(slide, index) in bannerSlides" :key="slide.id">
+      <SwiperSlide v-for="(slide, index) in banners" :key="slide.id">
         <!-- Slides that are not shown are inert, so their buttons are not reachable by keyboard. -->
         <div
           class="relative aspect-4/5 w-full overflow-hidden bg-muted sm:aspect-video lg:aspect-[16/7]"
           :inert="index !== activeIndex"
         >
           <Image
-            :src="homeImage(slide.image)"
+            :src="imageOf(slide).url"
             alt=""
+            :width="imageOf(slide).width"
+            :height="imageOf(slide).height"
             fit="cover"
             :loading="index === 0 ? 'eager' : 'lazy'"
             class="absolute inset-0 size-full"
@@ -99,8 +119,15 @@ const a11y = {
                 class="max-w-md rounded-xl bg-card/90 p-6 shadow-sm backdrop-blur-sm"
               >
                 <Typography as="h2" variant="title">{{ slide.title }}</Typography>
-                <Typography variant="body">{{ slide.description }}</Typography>
-                <Button @click="router.push(slide.cta.to)">{{ slide.cta.label }}</Button>
+                <Typography v-if="slide.description" variant="body" class="whitespace-pre-line">
+                  {{ slide.description }}
+                </Typography>
+                <Button v-if="slide.linkUrl" @click="open(slide.linkUrl)">
+                  Xem chi tiết
+                  <span v-if="!slide.linkUrl.startsWith('/')" class="sr-only">
+                    (mở trong tab mới)
+                  </span>
+                </Button>
               </Flex>
             </Flex>
           </Container>
@@ -110,7 +137,10 @@ const a11y = {
 
     <!-- Controls sit outside the Swiper element and drive its instance. -->
     <!-- Side arrows only from the sm breakpoint; on phones the banner is swiped or uses the dots. -->
-    <div class="pointer-events-none absolute inset-x-4 inset-y-0 z-10 hidden sm:block">
+    <div
+      v-if="canSlide"
+      class="pointer-events-none absolute inset-x-4 inset-y-0 z-10 hidden sm:block"
+    >
       <Flex align="center" justify="space-between" class="h-full">
         <Button
           class="pointer-events-auto"
@@ -131,7 +161,7 @@ const a11y = {
       </Flex>
     </div>
 
-    <Flex align="center" justify="center" class="absolute inset-x-0 bottom-3 z-10">
+    <Flex v-if="canSlide" align="center" justify="center" class="absolute inset-x-0 bottom-3 z-10">
       <Flex
         align="center"
         :gap="4"
@@ -149,7 +179,7 @@ const a11y = {
           </template>
         </Button>
         <Button
-          v-for="(slide, index) in bannerSlides"
+          v-for="(slide, index) in banners"
           :key="slide.id"
           variant="text"
           size="small"

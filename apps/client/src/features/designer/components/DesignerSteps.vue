@@ -6,7 +6,7 @@ defineProps<{
   current: number
 }>()
 
-const steps = ['Chọn đồ', 'Cá nhân hóa', 'Xem cả bộ']
+const steps = ['Chọn đồ', 'Cá nhân hóa', 'Xem cả bộ', 'Đặt hàng']
 </script>
 
 <template>

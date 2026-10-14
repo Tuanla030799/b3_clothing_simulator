@@ -25,25 +25,21 @@ const backgrounds: Background[] = [
     id: 'h-wide',
     name: 'Nền ngang',
     image: { src: generated(1200, 600, '#cfe3d4', '1200×600') },
-    provisional: true,
   },
   {
     id: 'h-tall',
     name: 'Nền dọc',
     image: { src: generated(600, 1200, '#f3d7cf', '600×1200') },
-    provisional: true,
   },
   {
     id: 'h-square',
     name: 'Nền vuông',
     image: { src: generated(900, 900, '#d7d3f3', '900×900') },
-    provisional: true,
   },
   {
     id: 'h-broken',
     name: 'Nền lỗi',
     image: { src: '/__harness__/missing-background.png' },
-    provisional: true,
   },
 ]
 </script>

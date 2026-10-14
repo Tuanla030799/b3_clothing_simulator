@@ -9,7 +9,6 @@ import {
   watch,
   type InjectionKey,
 } from 'vue'
-import { designPresets } from './data/catalog'
 import { DEFAULT_TEXT_COLOR_ID, DESIGN_FONT, LAYER_LIMITS } from './data/designOptions'
 import {
   emptyDesigns,
@@ -52,7 +51,7 @@ import {
   type LineMetrics,
   type TextLayout,
 } from './textLayout'
-import type { EmbroideryZone, Product } from './types'
+import type { DesignPreset, EmbroideryZone, Product } from './types'
 import type { Selection } from './useSelection'
 
 export interface DesignDeps {
@@ -98,8 +97,14 @@ type ProductImageState =
  * Personalization state of the gift set: design data per instance/zone plus runtime resources.
  * One independent state per call; DesignerPage calls it next to useSelection.
  */
-export function useDesigns(selection: Selection, overrides: Partial<DesignDeps> = {}) {
-  const deps = { ...defaultDeps(), ...overrides }
+export interface DesignOptions extends Partial<DesignDeps> {
+  /** Ready-made images customers can pick (from the designer catalog). */
+  presets?: readonly DesignPreset[]
+}
+
+export function useDesigns(selection: Selection, options: DesignOptions = {}) {
+  const { presets = [], ...overrides } = options
+  const deps: DesignDeps = { ...defaultDeps(), ...overrides }
 
   const designs = shallowRef<DesignState>(emptyDesigns)
   // UI selection (not design data): remembered zone per instance and the layer being edited.
@@ -108,7 +113,8 @@ export function useDesigns(selection: Selection, overrides: Partial<DesignDeps> 
   const fontStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
 
   // Runtime resources.
-  const uploads = new Map<string, { url: string; image: DecodedImage }>()
+  // The picked file is kept so it can be uploaded with an order.
+  const uploads = new Map<string, { url: string; image: DecodedImage; file: Blob }>()
   const presetImages = new Map<string, Promise<DecodedImage>>()
   const loadedPresets = shallowReactive(new Map<string, DecodedImage>())
   const presetErrors = shallowReactive(new Set<string>())
@@ -352,7 +358,7 @@ export function useDesigns(selection: Selection, overrides: Partial<DesignDeps> 
   function presetImage(presetId: string): Promise<DecodedImage> {
     let request = presetImages.get(presetId)
     if (!request) {
-      const src = designPresets.find((preset) => preset.id === presetId)?.image.src
+      const src = presets.find((preset) => preset.id === presetId)?.image.src
       presetErrors.delete(presetId)
       request = src
         ? deps.decodeImage(src).then((image) => {
@@ -489,7 +495,7 @@ export function useDesigns(selection: Selection, overrides: Partial<DesignDeps> 
             return 'dimensions-too-large'
           }
           const uploadId = `upload-${++uploadCounter}`
-          uploads.set(uploadId, { url, image })
+          uploads.set(uploadId, { url, image, file })
           return { source: { kind: 'upload', uploadId, fileName: file.name }, image }
         } catch {
           deps.revokeObjectURL(url)
@@ -696,6 +702,8 @@ export function useDesigns(selection: Selection, overrides: Partial<DesignDeps> 
     ensureFont,
     /** Number of live object URLs created for uploads (for diagnostics and tests). */
     liveUploadCount: () => uploads.size,
+    /** The file the customer picked for an upload id, while it is still used. */
+    uploadBlob: (uploadId: string): Blob | undefined => uploads.get(uploadId)?.file,
   }
 }
 

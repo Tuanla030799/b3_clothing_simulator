@@ -76,6 +76,10 @@ export interface RenderInput {
   size: Size
   /** Fill used when the scene has no background image (the intended neutral background). */
   fallbackFill: string
+  /** Output type; PNG (the download) by default. */
+  mimeType?: string
+  /** Encoder quality for lossy types (0–1). */
+  quality?: number
 }
 
 /**
@@ -84,7 +88,13 @@ export interface RenderInput {
  * size and pixelRatio 1, so the result is exactly `size` pixels. Everything created here is
  * released in `finally`, on success and on failure.
  */
-export async function renderSceneToBlob({ scene, size, fallbackFill }: RenderInput): Promise<Blob> {
+export async function renderSceneToBlob({
+  scene,
+  size,
+  fallbackFill,
+  mimeType = EXPORT.mimeType,
+  quality,
+}: RenderInput): Promise<Blob> {
   if (!scene.complete) throw new ExportError('resource')
   const { default: Konva } = await import('konva')
 
@@ -134,7 +144,7 @@ export async function renderSceneToBlob({ scene, size, fallbackFill }: RenderInp
       pixelRatio: 1,
     })
     const blob = await new Promise<Blob | null>((resolve) =>
-      canvas!.toBlob(resolve, EXPORT.mimeType),
+      canvas!.toBlob(resolve, mimeType, quality),
     )
     if (!blob || blob.size === 0) throw new ExportError('blob')
     return blob

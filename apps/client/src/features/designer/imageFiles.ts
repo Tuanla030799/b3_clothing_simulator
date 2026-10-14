@@ -118,6 +118,9 @@ export interface DecodedImage {
 export function decodeImage(url: string): Promise<DecodedImage> {
   return new Promise((resolve, reject) => {
     const element = new window.Image()
+    // Catalog images come from the API host; requesting them with CORS keeps the canvas
+    // exportable (a tainted canvas cannot produce a PNG). Object and data URLs are unaffected.
+    element.crossOrigin = 'anonymous'
     element.decoding = 'async'
     element.onload = () => {
       const width = element.naturalWidth

@@ -1,5 +1,4 @@
 import { computed, inject, provide, shallowRef, type InjectionKey } from 'vue'
-import { products as catalogProducts, selectionRules } from './data/catalog'
 import { createEditLock, type EditLock } from './editLock'
 import {
   addItem,
@@ -24,7 +23,8 @@ export interface SelectedEntry {
 }
 
 export interface UseSelectionOptions {
-  catalog?: SelectionCatalog
+  /** Products and limits the selection is checked against (the loaded designer catalog). */
+  catalog: SelectionCatalog
   /** Must return a new unique id on every call. Defaults to a per-selection counter. */
   createId?: () => string
   /** Shared edit lock; a new one is created when omitted. Exposed as `selection.lock`. */
@@ -36,11 +36,8 @@ export interface UseSelectionOptions {
  * that calls it decides the lifetime: panels and tabs can unmount without losing the selection.
  * Nothing is persisted; a reload starts with an empty set.
  */
-export function useSelection(options: UseSelectionOptions = {}) {
-  const catalog: SelectionCatalog = options.catalog ?? {
-    products: catalogProducts,
-    rules: selectionRules,
-  }
+export function useSelection(options: UseSelectionOptions) {
+  const { catalog } = options
   let counter = 0
   const createId = options.createId ?? (() => `item-${++counter}`)
 

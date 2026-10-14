@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { products as catalogProducts, selectionRules } from './data/catalog'
 import {
   addItem,
   checkCanAdd,
@@ -20,7 +19,8 @@ function product(id: string, categoryId: string): Product {
     image: {},
     displayScale: 1,
     embroideryZones: [],
-    provisional: true,
+    productId: 'model',
+    productSlug: 'model',
   }
 }
 
@@ -155,16 +155,5 @@ describe('useSelection', () => {
     expect(first.selectedCategoryIds.value).toEqual(['shirt', 'shirt'])
     expect(first.activeEntry.value?.position).toBe(2)
     expect(first.canAdd(shirt.id).ok).toBe(false)
-  })
-
-  it('uses the configured catalog rules by default', () => {
-    const selection = useSelection()
-    expect(selection.rules).toBe(selectionRules)
-    const limitedCategory = Object.keys(selectionRules.categoryLimits)[0]!
-    const limited = catalogProducts.find((entry) => entry.categoryId === limitedCategory)!
-    const limit = selectionRules.categoryLimits[limitedCategory]!
-
-    for (let i = 0; i < limit + 2; i++) selection.add(limited.id)
-    expect(selection.items.value).toHaveLength(limit)
   })
 })

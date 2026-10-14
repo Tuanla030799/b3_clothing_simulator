@@ -1,25 +1,24 @@
 <script setup lang="ts">
-import type { Component } from 'vue'
 import { RouterLink } from 'vue-router'
-import { Flower2, Gift, Leaf, Moon, Snowflake, Sun } from '@lucide/vue'
-import { Col, Container, Flex, Image, Link, Row } from '@lituta/ui'
-import { homeImage } from '../data/assets'
-import { seasonalCollections } from '../data/homeData'
+import { ArrowRight } from '@lucide/vue'
+import { Button, Col, Container, EmptyState, Flex, Link, Row, Typography } from '@lituta/ui'
+import { publicCatalog } from '../../../api/publicCatalog'
+import { useRemoteData } from '../../../api/useRemoteData'
+import CollectionCard from '../../catalog/components/CollectionCard.vue'
 import SectionHeading from './SectionHeading.vue'
 
-// Placeholder icons for collections without an image yet (design detail, not data).
-const icons: Record<string, Component> = {
-  'giang-sinh': Snowflake,
-  tet: Flower2,
-  'trung-thu': Moon,
-  'mua-he': Sun,
-  'mua-thu': Leaf,
-  'mua-dong': Gift,
-}
+// Featured collections chosen by the admin (active ones only). Hidden when there are none.
+const collections = useRemoteData((signal) =>
+  publicCatalog.allCollections({ featured: true }, signal),
+)
 </script>
 
 <template>
-  <section aria-labelledby="collections-heading" class="bg-secondary/40 py-12 lg:py-16">
+  <section
+    v-if="collections.loading.value || collections.error.value || collections.data.value?.length"
+    aria-labelledby="collections-heading"
+    class="bg-secondary/40 py-12 lg:py-16"
+  >
     <Container>
       <Flex vertical gap="large">
         <SectionHeading
@@ -28,47 +27,40 @@ const icons: Record<string, Component> = {
           title="Bộ sưu tập theo mùa"
         />
 
-        <Row as="ul" :gutter="[16, 16]" aria-label="Bộ sưu tập theo mùa">
-          <Col
-            v-for="collection in seasonalCollections"
-            :key="collection.id"
-            as="li"
-            :xs="12"
-            :md="8"
-            :lg="4"
-          >
-            <Link :as="RouterLink" :to="collection.to" variant="plain" class="group block">
-              <div class="relative aspect-3/4 overflow-hidden rounded-xl bg-muted">
-                <Image
-                  :src="homeImage(collection.image)"
-                  alt=""
-                  fit="cover"
-                  class="absolute inset-0 size-full transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none motion-reduce:transform-none"
-                >
-                  <template #fallback>
-                    <Flex
-                      align="center"
-                      justify="center"
-                      class="size-full bg-linear-to-br from-secondary via-background to-muted"
-                    >
-                      <component
-                        :is="icons[collection.id] ?? Gift"
-                        class="size-10 text-primary/70"
-                        aria-hidden="true"
-                      />
-                    </Flex>
-                  </template>
-                </Image>
-                <!-- Light label strip keeps the name readable over any image. -->
-                <p
-                  class="absolute inset-x-0 bottom-0 bg-card/90 px-3 py-2 text-center text-sm font-semibold backdrop-blur-sm"
-                >
-                  {{ collection.name }}
-                </p>
-              </div>
-            </Link>
-          </Col>
-        </Row>
+        <EmptyState
+          v-if="collections.error.value && !collections.loading.value"
+          title="Chưa tải được bộ sưu tập"
+          :description="collections.error.value"
+        >
+          <template #action>
+            <Button @click="collections.reload()">Thử lại</Button>
+          </template>
+        </EmptyState>
+
+        <template v-else-if="collections.data.value">
+          <Row as="ul" :gutter="[16, 16]" aria-label="Bộ sưu tập theo mùa">
+            <Col
+              v-for="collection in collections.data.value"
+              :key="collection.id"
+              as="li"
+              :xs="12"
+              :md="8"
+              :lg="4"
+            >
+              <CollectionCard :collection="collection" />
+            </Col>
+          </Row>
+          <Link :as="RouterLink" to="/bo-suu-tap" class="self-center">
+            <Flex as="span" align="center" :gap="4">
+              Xem tất cả bộ sưu tập
+              <ArrowRight class="size-4" aria-hidden="true" />
+            </Flex>
+          </Link>
+        </template>
+
+        <Typography v-else variant="caption" role="status" class="text-center">
+          Đang tải bộ sưu tập…
+        </Typography>
       </Flex>
     </Container>
   </section>

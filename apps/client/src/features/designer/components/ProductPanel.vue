@@ -1,31 +1,39 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { Plus } from '@lucide/vue'
-import { Button, Flex, Image, Typography } from '@lituta/ui'
+import { Button, EmptyState, Flex, Image, Typography } from '@lituta/ui'
 import { addBlockMessage } from '../addBlockMessage'
-import { categories, categoryName, products } from '../data/catalog'
+import { injectCatalog, useCategoryName } from '../catalog'
 import type { CategoryId, Product } from '../types'
 import { injectSelection } from '../useSelection'
 
 const selection = injectSelection()
+const catalog = injectCatalog()
+const categoryName = useCategoryName()
 
 // Filtering is view state only; it never touches the selection.
 const activeCategoryId = ref<CategoryId | null>(null)
 
 const filters = computed(() => [
   { id: null, name: 'Tất cả' },
-  ...categories.map((category) => ({ id: category.id as CategoryId | null, name: category.name })),
+  ...catalog.categories.map((category) => ({
+    id: category.id as CategoryId | null,
+    name: category.name,
+  })),
 ])
 
 // Products stay listed when a limit is reached; only their add button is blocked.
 const rows = computed(() =>
-  products
+  catalog.products
     .filter(
       (product) => activeCategoryId.value === null || product.categoryId === activeCategoryId.value,
     )
     .map((product) => {
       const check = selection.canAdd(product.id)
-      return { product, blockedReason: check.ok ? null : addBlockMessage(check.reason) }
+      return {
+        product,
+        blockedReason: check.ok ? null : addBlockMessage(check.reason, categoryName),
+      }
     }),
 )
 
@@ -38,7 +46,7 @@ function add(product: Product) {
   )?.position
   announcement.value = result.ok
     ? `Đã thêm ${product.name} vào bộ, món ${position}`
-    : addBlockMessage(result.reason)
+    : addBlockMessage(result.reason, categoryName)
 }
 </script>
 
@@ -65,7 +73,13 @@ function add(product: Product) {
         </Button>
       </Flex>
 
-      <ul class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1" aria-label="Sản phẩm">
+      <EmptyState
+        v-if="catalog.products.length === 0"
+        title="Chưa có sản phẩm"
+        description="Cửa hàng chưa mở bán sản phẩm nào. Vui lòng quay lại sau."
+      />
+
+      <ul v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1" aria-label="Sản phẩm">
         <li
           v-for="{ product, blockedReason } in rows"
           :key="product.id"

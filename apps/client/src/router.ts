@@ -13,10 +13,7 @@ declare module 'vue-router' {
 
 // Menu targets that do not exist yet share one placeholder page.
 const comingSoon = [
-  { path: '/san-pham', title: 'Sản phẩm' },
-  { path: '/bo-suu-tap', title: 'Bộ sưu tập' },
   { path: '/tra-cuu-don-hang', title: 'Tra cứu đơn hàng' },
-  { path: '/gio-hang', title: 'Giỏ hàng' },
   { path: '/lien-he', title: 'Liên hệ' },
   { path: '/ve-chung-toi', title: 'Về chúng tôi' },
 ]
@@ -29,13 +26,46 @@ export const routes: RouteRecordRaw[] = [
     name: 'designer',
     // Loaded on demand: the design tool (and Konva) is not part of the home page bundle.
     component: () => import('./pages/DesignerPage.vue'),
+    // `?mau=<color id>` (from "Thiết kế với màu này") starts the set with that color.
+    props: (route) => ({
+      initialColorId: typeof route.query.mau === 'string' ? route.query.mau : undefined,
+    }),
     meta: { title: 'Thiết kế bộ quà', hideFooter: true },
   },
-  // Collection pages share the placeholder until they are built.
+  // The set being designed is the cart: ordering starts from the design tool.
+  { path: '/gio-hang', redirect: '/thiet-ke' },
+  {
+    path: '/don-hang/:id',
+    name: 'order',
+    component: () => import('./pages/OrderPage.vue'),
+    props: true,
+    meta: { title: 'Đơn hàng' },
+  },
+  // Catalog pages read the public API; each is its own chunk.
+  {
+    path: '/san-pham',
+    name: 'products',
+    component: () => import('./pages/ProductsPage.vue'),
+    meta: { title: 'Sản phẩm' },
+  },
+  {
+    path: '/san-pham/:slug',
+    name: 'product',
+    component: () => import('./pages/ProductDetailPage.vue'),
+    props: true,
+    meta: { title: 'Sản phẩm' },
+  },
+  {
+    path: '/bo-suu-tap',
+    name: 'collections',
+    component: () => import('./pages/CollectionsPage.vue'),
+    meta: { title: 'Bộ sưu tập' },
+  },
   {
     path: '/bo-suu-tap/:slug',
     name: 'collection',
-    component: ComingSoonPage,
+    component: () => import('./pages/CollectionPage.vue'),
+    props: true,
     meta: { title: 'Bộ sưu tập' },
   },
   ...comingSoon.map(({ path, title }) => ({

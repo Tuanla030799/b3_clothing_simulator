@@ -1,8 +1,10 @@
-import { categoryName } from './data/catalog'
 import type { AddBlockReason } from './selection'
 
 /** Short customer-facing reason for a blocked add. Numbers come from the rules in the reason. */
-export function addBlockMessage(reason: AddBlockReason): string {
+export function addBlockMessage(
+  reason: AddBlockReason,
+  categoryName: (categoryId: string) => string,
+): string {
   switch (reason.code) {
     case 'max-items':
       return `Bộ đã đủ ${reason.limit} món`
