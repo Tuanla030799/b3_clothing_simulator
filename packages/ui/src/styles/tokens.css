@@ -26,6 +26,8 @@
   --input: #8c8176;
   --ring: #456454;
   --radius: 0.75rem;
+  /* Stacking level of Select/Dropdown menus. Apps raise it above their own overlay layers. */
+  --z-popover: 50;
 }
 
 @theme inline {

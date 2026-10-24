@@ -341,6 +341,8 @@ business logic or reload button.
   `destructive` (each with `-foreground`), `border`, `input`, `ring`, `radius`. Use them through
   Tailwind utilities (`bg-primary`, `text-muted-foreground`, `border-input`, `rounded-lg`).
   No hex values in templates. Light theme only.
+- `--z-popover` (default `50`) is the stacking level of the Select and Dropdown menus. An app
+  whose own overlays sit higher (Ant Modal/Drawer use 1000 in admin) raises it in its CSS.
 - `border` is decorative; `input` (#8c8176) is the form-control border with ≥ 3:1 contrast.
 - UI font: Be Vietnam Pro 400/500/600/700 from `@fontsource/be-vietnam-pro` (OFL-1.1, license in
   the package), with latin, latin-ext and vietnamese subsets and a system fallback stack.

@@ -2,3 +2,8 @@
 
 /* Admin sources; the UI package registers its own. */
 @source '../';
+
+/* Shared Select/Dropdown menus open above Ant Modal and Drawer (z-index 1000). */
+:root {
+  --z-popover: 1050;
+}

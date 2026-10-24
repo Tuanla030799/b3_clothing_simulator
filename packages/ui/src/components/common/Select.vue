@@ -62,10 +62,12 @@ function clear() {
   el?.focus()
 }
 
+// Same data-size variant as the primitive's own height, so cn() replaces it instead of losing on
+// specificity.
 const sizeClasses: Record<SelectSize, string> = {
-  small: 'h-8 text-sm',
-  middle: 'h-10 text-sm',
-  large: 'h-12 text-base',
+  small: 'data-[size=default]:h-8 text-sm',
+  middle: 'data-[size=default]:h-10 text-sm',
+  large: 'data-[size=default]:h-12 text-base',
 }
 </script>
 
