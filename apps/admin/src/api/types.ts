@@ -35,21 +35,27 @@ export interface CategoryInput {
   sortOrder?: number
 }
 
+/** A color of the fixed palette (GET /admin/color-palette); `multi` has no swatch. */
+export interface PaletteColor {
+  key: string
+  name: string
+  hexCode: string | null
+}
+
 export interface ProductColor {
   id: string
+  /** Palette key; name and hexCode are copied from the palette by the API. */
+  colorKey: string
   name: string
   hexCode: string | null
   isActive: boolean
   sortOrder: number
-  designerEnabled: boolean
-  displayScale: number
   displayImage: FileRef
   designImage: FileRef
 }
 
 export interface ColorInput {
-  name: string
-  hexCode: string | null
+  colorKey: string
   displayImageFileId: string
   designImageFileId: string
   sortOrder?: number
@@ -78,6 +84,9 @@ export interface ProductListItem {
 
 export interface Product extends ProductListItem {
   description: string | null
+  /** Designer flag and set-view scale of the product, shared by all its colors. */
+  designerEnabled: boolean
+  displayScale: number
   colors: ProductColor[]
   sizes: ProductSize[]
 }
@@ -89,6 +98,12 @@ export interface ProductInput {
   description: string | null
   price: number
   sortOrder?: number
+}
+
+/** Colors and sizes created together with a new product, in the same transaction. */
+export interface ProductCreateExtras {
+  colors?: ColorInput[]
+  sizes?: { name: string }[]
 }
 
 export interface EmbroideryZone {
@@ -107,11 +122,18 @@ export interface EmbroideryZone {
 
 export type ZoneInput = Omit<EmbroideryZone, 'id'>
 
-export interface ColorDesigner {
-  colorId: string
+/** Designer setup of a product: the zones are shared by every color's design image. */
+export interface ProductDesigner {
+  productId: string
   designerEnabled: boolean
   displayScale: number
-  designImage: FileRef
+  colors: {
+    id: string
+    name: string
+    hexCode: string | null
+    isActive: boolean
+    designImage: FileRef
+  }[]
   zones: EmbroideryZone[]
 }
 

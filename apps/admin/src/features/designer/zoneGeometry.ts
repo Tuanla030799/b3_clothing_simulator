@@ -1,6 +1,6 @@
 /*
  * Embroidery zone rules of the API (designer-contract.md): an axis-aligned rectangle in fractions
- * (0–1) of the color's design image, origin top-left, fully inside the image (1e-6 tolerance on the
+ * (0–1) of each color's design image, origin top-left, fully inside the image (1e-6 tolerance on the
  * far edges), with at least one allowed content type and a stable key.
  */
 
@@ -20,7 +20,7 @@ export interface ZoneDraft extends ZoneRect {
 }
 
 export const ZONE_KEY_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/
-export const MAX_ZONES_PER_COLOR = 10
+export const MAX_ZONES_PER_PRODUCT = 10
 /** Smallest side the editor creates by dragging (a fraction of the image). */
 export const MIN_ZONE_SIDE = 0.02
 const EPSILON = 1e-6
@@ -31,7 +31,7 @@ export function zoneErrors(zone: ZoneDraft, otherKeys: readonly string[] = []): 
   const errors: ZoneErrors = {}
   if (!ZONE_KEY_PATTERN.test(zone.key)) errors.key = 'Chữ thường không dấu, số, gạch nối.'
   else if (zone.key.length > 50) errors.key = 'Tối đa 50 ký tự.'
-  else if (otherKeys.includes(zone.key)) errors.key = 'Mã vùng đã có trong màu này.'
+  else if (otherKeys.includes(zone.key)) errors.key = 'Mã vùng đã có trong sản phẩm này.'
   if (!zone.name.trim()) errors.name = 'Nhập tên vùng.'
   else if (zone.name.trim().length > 100) errors.name = 'Tối đa 100 ký tự.'
 

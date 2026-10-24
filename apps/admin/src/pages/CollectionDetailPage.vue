@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, shallowRef, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { Pencil, Plus, Trash2 } from '@lucide/vue'
+import { Plus, Trash2 } from '@lucide/vue'
 import {
   InputNumber,
   Select as AntSelect,
@@ -10,14 +10,16 @@ import {
   Tag,
   type TableColumnType,
 } from 'ant-design-vue'
-import { Button, EmptyState, Flex, Image, Link, Typography } from '@lituta/ui'
+import { Button, Col, EmptyState, Flex, Link, Row, Typography } from '@lituta/ui'
 import { errorMessage } from '../api/httpClient'
 import { collectionsApi, productsApi } from '../api/resources'
 import type { Collection, CollectionMember } from '../api/types'
+import FormFooter from '../components/FormFooter.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { useFeedback } from '../composables/useFeedback'
+import { useLeaveGuard } from '../composables/useLeaveGuard'
 import { usePagedTable } from '../composables/usePagedTable'
-import CollectionFormModal from '../features/catalog/CollectionFormModal.vue'
+import CollectionForm from '../features/catalog/CollectionForm.vue'
 import { formatPrice } from '../utils/format'
 
 const props = defineProps<{ id: string }>()
@@ -48,7 +50,8 @@ watch(
   { immediate: true },
 )
 
-const editing = ref(false)
+const infoForm = ref<InstanceType<typeof CollectionForm> | null>(null)
+const { allowLeave } = useLeaveGuard(() => Boolean(infoForm.value?.dirty))
 const orderDrafts = ref<Record<string, number | undefined>>({})
 watch(members.rows, (rows) => {
   orderDrafts.value = Object.fromEntries(rows.map((row) => [row.product.id, row.sortOrder]))
@@ -125,6 +128,12 @@ function removeMember(member: CollectionMember) {
   )
 }
 
+function infoSaved(saved: Collection) {
+  collection.value = saved
+  allowLeave()
+  void router.push('/bo-suu-tap')
+}
+
 function removeCollection() {
   if (!collection.value) return
   const current = collection.value
@@ -134,6 +143,8 @@ function removeCollection() {
     async () => {
       try {
         await collectionsApi.remove(current.id)
+        feedback.success('Đã xóa bộ sưu tập.')
+        allowLeave()
         void router.push('/bo-suu-tap')
       } catch (error) {
         feedback.error(error)
@@ -147,31 +158,16 @@ const columns: TableColumnType<CollectionMember>[] = [
   { title: 'Giá', key: 'price', width: 130 },
   { title: 'Trang khách', key: 'public', width: 130 },
   { title: 'Thứ tự', key: 'sortOrder', width: 200 },
-  { title: '', key: 'actions', width: 80, align: 'right' },
+  { title: '', key: 'actions', width: 80, align: 'right', fixed: 'right' },
 ]
 </script>
 
 <template>
   <PageHeader
     :title="collection?.name ?? 'Bộ sưu tập'"
-    :description="
-      collection
-        ? `/${collection.slug} · ${collection.isActive ? 'Đang hiện' : 'Đang ẩn'}${collection.isFeatured ? ' · Nổi bật' : ''}`
-        : undefined
-    "
+    :description="collection ? `/${collection.slug}` : undefined"
     :back="{ to: '/bo-suu-tap', label: 'Danh sách bộ sưu tập' }"
-  >
-    <template v-if="collection" #actions>
-      <Button variant="default" @click="editing = true">
-        <template #icon><Pencil /></template>
-        Sửa
-      </Button>
-      <Button variant="text" @click="removeCollection">
-        <template #icon><Trash2 /></template>
-        Xóa
-      </Button>
-    </template>
-  </PageHeader>
+  />
 
   <EmptyState v-if="loadError" title="Chưa tải được bộ sưu tập" :description="loadError">
     <template #action>
@@ -180,106 +176,143 @@ const columns: TableColumnType<CollectionMember>[] = [
   </EmptyState>
 
   <Spin v-else :spinning="!collection">
-    <Flex vertical gap="large">
-      <Flex v-if="collection?.image || collection?.description" gap="middle" align="start">
-        <Image
-          v-if="collection?.image"
-          :src="collection.image.url"
-          :alt="collection.name"
-          class="h-32 w-24 shrink-0 rounded border bg-muted"
-          fit="cover"
-        />
-        <Typography v-if="collection?.description" class="whitespace-pre-line">
-          {{ collection.description }}
-        </Typography>
-      </Flex>
-
-      <section aria-labelledby="members-heading" class="rounded-xl border bg-card p-4">
-        <Flex vertical gap="middle">
-          <Typography id="members-heading" as="h2" variant="subheading">
-            Sản phẩm ({{ collection?.productCount ?? 0 }})
-          </Typography>
-          <form class="max-w-xl" @submit.prevent="add">
-            <Flex gap="small">
-              <AntSelect
-                v-model:value="picked"
-                show-search
-                :filter-option="false"
-                :options="searchOptions"
-                :loading="searching"
-                placeholder="Tìm sản phẩm để thêm"
-                aria-label="Sản phẩm cần thêm"
-                class="min-w-0 flex-1"
-                @search="search"
+    <Row v-if="collection" :gutter="[24, 24]">
+      <Col :xs="24" :lg="16">
+        <Flex vertical gap="large">
+          <section aria-labelledby="info-heading" class="rounded-xl border bg-card p-4">
+            <Flex vertical gap="middle">
+              <Typography id="info-heading" as="h2" variant="subheading">Thông tin</Typography>
+              <CollectionForm ref="infoForm" :collection="collection" @saved="infoSaved" />
+              <FormFooter
+                submit-label="Lưu thông tin"
+                :saving="infoForm?.saving"
+                :dirty="infoForm?.dirty"
+                @submit="infoForm?.save()"
+                @reset="infoForm?.reset()"
               />
-              <Button html-type="submit" :disabled="!picked" :loading="adding">
-                <template #icon><Plus /></template>
-                Thêm
-              </Button>
             </Flex>
-          </form>
+          </section>
 
-          <Table
-            row-key="createdAt"
-            :columns="columns"
-            :data-source="members.rows.value"
-            :loading="members.loading.value"
-            :pagination="members.pagination.value"
-            :scroll="{ x: 700 }"
-            @change="members.onChange"
-          >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'product'">
-                <Link :as="RouterLink" :to="`/san-pham/${record.product.id}`">{{
-                  record.product.name
-                }}</Link>
-              </template>
-              <template v-else-if="column.key === 'price'">{{
-                formatPrice(record.product.price)
-              }}</template>
-              <template v-else-if="column.key === 'public'">
-                <Tag :color="record.product.isPublic ? 'green' : 'default'">
-                  {{ record.product.isPublic ? 'Đang hiện' : 'Không hiện' }}
-                </Tag>
-              </template>
-              <template v-else-if="column.key === 'sortOrder'">
-                <Flex gap="small" align="center">
-                  <InputNumber
-                    v-model:value="orderDrafts[record.product.id]"
-                    :min="0"
-                    :max="1000000"
-                    :precision="0"
-                    :aria-label="`Thứ tự ${record.product.name}`"
-                    class="w-24"
+          <section aria-labelledby="members-heading" class="rounded-xl border bg-card p-4">
+            <Flex vertical gap="middle">
+              <Typography id="members-heading" as="h2" variant="subheading">
+                Sản phẩm ({{ collection?.productCount ?? 0 }})
+              </Typography>
+              <form class="max-w-xl" @submit.prevent="add">
+                <Flex gap="small">
+                  <AntSelect
+                    v-model:value="picked"
+                    show-search
+                    :filter-option="false"
+                    :options="searchOptions"
+                    :loading="searching"
+                    placeholder="Tìm sản phẩm để thêm"
+                    :not-found-content="searching ? undefined : 'Không tìm thấy sản phẩm'"
+                    aria-label="Sản phẩm cần thêm"
+                    class="min-w-0 flex-1"
+                    @search="search"
                   />
-                  <Button
-                    size="small"
-                    variant="default"
-                    :disabled="orderDrafts[record.product.id] === record.sortOrder"
-                    @click="saveOrder(record as CollectionMember)"
-                  >
-                    Lưu
+                  <Button html-type="submit" size="small" :disabled="!picked" :loading="adding">
+                    <template #icon><Plus /></template>
+                    Thêm
                   </Button>
                 </Flex>
-              </template>
-              <template v-else-if="column.key === 'actions'">
-                <Button
-                  size="small"
-                  variant="text"
-                  @click="removeMember(record as CollectionMember)"
-                  >Bỏ</Button
-                >
-              </template>
-            </template>
-          </Table>
-        </Flex>
-      </section>
-    </Flex>
-  </Spin>
+              </form>
 
-  <CollectionFormModal
-    v-model:open="editing"
-    :collection="collection"
-    @saved="(saved) => (collection = saved)"
-  />
+              <Table
+                row-key="createdAt"
+                :columns="columns"
+                :data-source="members.rows.value"
+                :loading="members.loading.value"
+                :pagination="members.pagination.value"
+                :scroll="{ x: 700 }"
+                @change="members.onChange"
+              >
+                <template #bodyCell="{ column, record }">
+                  <template v-if="column.key === 'product'">
+                    <Link :as="RouterLink" :to="`/san-pham/${record.product.id}`">{{
+                      record.product.name
+                    }}</Link>
+                  </template>
+                  <template v-else-if="column.key === 'price'">{{
+                    formatPrice(record.product.price)
+                  }}</template>
+                  <template v-else-if="column.key === 'public'">
+                    <Tag :color="record.product.isPublic ? 'green' : 'default'">
+                      {{ record.product.isPublic ? 'Đang hiện' : 'Không hiện' }}
+                    </Tag>
+                  </template>
+                  <template v-else-if="column.key === 'sortOrder'">
+                    <Flex gap="small" align="center">
+                      <InputNumber
+                        v-model:value="orderDrafts[record.product.id]"
+                        :min="0"
+                        :max="1000000"
+                        :precision="0"
+                        :aria-label="`Thứ tự ${record.product.name}`"
+                        class="w-24"
+                      />
+                      <Button
+                        size="small"
+                        variant="default"
+                        :disabled="orderDrafts[record.product.id] === record.sortOrder"
+                        @click="saveOrder(record as CollectionMember)"
+                      >
+                        Lưu
+                      </Button>
+                    </Flex>
+                  </template>
+                  <template v-else-if="column.key === 'actions'">
+                    <Button
+                      size="small"
+                      variant="text"
+                      @click="removeMember(record as CollectionMember)"
+                      >Bỏ</Button
+                    >
+                  </template>
+                </template>
+              </Table>
+            </Flex>
+          </section>
+        </Flex>
+      </Col>
+
+      <Col :xs="24" :lg="8">
+        <Flex vertical gap="large" class="lg:sticky lg:top-4">
+          <section aria-labelledby="visibility-heading" class="rounded-xl border bg-card p-4">
+            <Flex vertical gap="small">
+              <Typography id="visibility-heading" as="h2" variant="subheading">
+                Hiển thị
+              </Typography>
+              <Flex wrap gap="small">
+                <Tag :color="collection.isActive ? 'green' : 'default'">
+                  {{ collection.isActive ? 'Đang hiện' : 'Đang ẩn' }}
+                </Tag>
+                <Tag v-if="collection.isFeatured" color="gold">Nổi bật</Tag>
+                <Tag>{{ collection.productCount }} sản phẩm</Tag>
+              </Flex>
+              <Typography variant="caption">
+                Bộ sưu tập nổi bật và đang hiện xuất hiện trên trang chủ. Đổi trong phần Thông tin.
+              </Typography>
+            </Flex>
+          </section>
+
+          <section aria-labelledby="danger-heading" class="rounded-xl border bg-card p-4">
+            <Flex vertical gap="middle">
+              <Typography id="danger-heading" as="h2" variant="subheading">
+                Xóa bộ sưu tập
+              </Typography>
+              <Typography variant="caption">
+                Chỉ xóa bộ sưu tập và danh sách thành viên; sản phẩm không bị ảnh hưởng.
+              </Typography>
+              <Button variant="destructive" class="self-start" @click="removeCollection">
+                <template #icon><Trash2 /></template>
+                Xóa bộ sưu tập
+              </Button>
+            </Flex>
+          </section>
+        </Flex>
+      </Col>
+    </Row>
+  </Spin>
 </template>

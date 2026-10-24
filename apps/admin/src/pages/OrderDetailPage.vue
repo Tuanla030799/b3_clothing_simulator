@@ -10,6 +10,7 @@ import PageHeader from '../components/PageHeader.vue'
 import { useFeedback } from '../composables/useFeedback'
 import { usePrivateImages } from '../composables/usePrivateImages'
 import { formatDateTime, formatPrice, formatQuote } from '../utils/format'
+import { formatMoneyInput, parseMoneyInput } from '../utils/money'
 import {
   ORDER_STATUS_COLORS,
   ORDER_STATUS_LABELS,
@@ -323,7 +324,10 @@ function eventText(event: OrderEvent): string {
                         :max="100000000000"
                         :precision="0"
                         :step="10000"
-                        class="w-48"
+                        :formatter="formatMoneyInput"
+                        :parser="parseMoneyInput"
+                        addon-after="₫"
+                        style="width: 14rem"
                       />
                     </template>
                   </FormField>

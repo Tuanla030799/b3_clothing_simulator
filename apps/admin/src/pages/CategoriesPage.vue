@@ -2,7 +2,7 @@
 import { reactive, ref, watch } from 'vue'
 import { Plus, Search } from '@lucide/vue'
 import { Input, InputNumber, Modal, Switch, Table, type TableColumnType } from 'ant-design-vue'
-import { Button, Flex, FormField, Select, Typography } from '@lituta/ui'
+import { Button, Col, Flex, FormField, Row, Select, Typography } from '@lituta/ui'
 import { fieldErrors } from '../api/httpClient'
 import { categoriesApi } from '../api/resources'
 import type { Category } from '../api/types'
@@ -144,24 +144,28 @@ function remove(category: Category) {
     </template>
   </PageHeader>
 
-  <Flex wrap gap="small" class="mb-4">
-    <form role="search" class="w-full max-w-xs" @submit.prevent="table.reload(true)">
-      <Input
-        v-model:value="filters.q"
-        placeholder="Tìm theo tên"
-        allow-clear
-        aria-label="Tìm theo tên"
-      >
-        <template #suffix><Search class="size-4" aria-hidden="true" /></template>
-      </Input>
-    </form>
-    <Select
-      v-model="filters.active"
-      :options="activeOptions"
-      aria-label="Lọc trạng thái"
-      class="w-48"
-    />
-  </Flex>
+  <Row :gutter="[12, 12]" class="mb-4">
+    <Col :xs="24" :sm="12" :lg="8" :xl="6">
+      <form role="search" @submit.prevent="table.reload(true)">
+        <Input
+          v-model:value="filters.q"
+          placeholder="Tìm theo tên"
+          allow-clear
+          aria-label="Tìm theo tên"
+        >
+          <template #suffix><Search class="size-4" aria-hidden="true" /></template>
+        </Input>
+      </form>
+    </Col>
+    <Col :xs="24" :sm="12" :lg="8" :xl="6">
+      <Select
+        v-model="filters.active"
+        size="small"
+        :options="activeOptions"
+        aria-label="Lọc trạng thái"
+      />
+    </Col>
+  </Row>
 
   <Typography v-if="table.error.value" role="alert" class="mb-4 text-destructive">
     {{ table.error.value }}
@@ -238,7 +242,7 @@ function remove(category: Category) {
           </FormField>
           <FormField for="category-active" label="Hiện trên trang khách">
             <template #default="{ id }">
-              <Switch :id="id" v-model:checked="form.isActive" />
+              <Switch :id="id" v-model:checked="form.isActive" class="self-start" />
             </template>
           </FormField>
         </Flex>

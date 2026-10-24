@@ -726,10 +726,21 @@ the GitHub Pages workflow builds the client only (`yarn build:client`). No admin
   and transparent design images → sizes → publish), color zones, categories, collections and
   members, banners (link rule checked as in the API), backgrounds, ready-made images, item limits
   and default background.
-- **Zone editor** ([ColorDesignerDrawer.vue](apps/admin/src/features/designer/ColorDesignerDrawer.vue)):
-  zones drawn over the color's design image in image fractions (top-left origin): drag to move,
-  drag the corner to resize, arrow keys (Shift = resize) or number inputs; each zone is saved on
-  its own, the key cannot change after saving, max 10 per color, rules as in the API
+- **Pages vs modals:** records with many settings are edited on their own routes, never in a modal:
+  `/san-pham/moi`, `/san-pham/:id` (information, colors, sizes, publishing),
+  `/san-pham/:id/thiet-ke` (embroidery zones, designer flag, display scale),
+  `/san-pham/:id/mau/moi` and `/san-pham/:id/mau/:colorId` (palette color, images, order, on sale),
+  `/bo-suu-tap/moi` and `/bo-suu-tap/:id` (information and products). Leaving a page with unsaved
+  changes asks first ([useLeaveGuard.ts](apps/admin/src/composables/useLeaveGuard.ts)). Short forms
+  (categories, banners, backgrounds, ready-made images, order quote/status) stay in modals.
+- **Colors** are picked from the API palette (`GET /admin/color-palette`; each key once per
+  product, "Nhiều màu" for prints); the name and swatch come from the API, nothing is typed.
+- **Zone editor** ([ProductDesigner.vue](apps/admin/src/features/designer/ProductDesigner.vue), on
+  the product design page): one set of zones per product, shared by all its colors, drawn over a
+  chosen color's design image in image fractions (top-left origin) — switch the preview color to
+  check that every color's design image uses the same framing. Drag to move, drag the corner to
+  resize, arrow keys (Shift = resize) or number inputs; each zone is saved on its own, the key
+  cannot change after saving, max 10 per product, rules as in the API
   ([zoneGeometry.ts](apps/admin/src/features/designer/zoneGeometry.ts)). The designer flag and
   display scale are saved separately (the API requires a saved zone to turn it on).
 - Uploads ([ImageUploadField.vue](apps/admin/src/components/ImageUploadField.vue)) go to

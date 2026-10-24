@@ -215,7 +215,7 @@ function remove(asset: DesignAsset) {
           </FormField>
           <FormField for="asset-active" label="Hiện cho khách">
             <template #default="{ id }">
-              <Switch :id="id" v-model:checked="form.isActive" />
+              <Switch :id="id" v-model:checked="form.isActive" class="self-start" />
             </template>
           </FormField>
         </Flex>

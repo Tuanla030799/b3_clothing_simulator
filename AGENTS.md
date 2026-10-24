@@ -83,7 +83,8 @@ Keep business-specific UI in its feature. Create directories only when they cont
 - The API contract (envelope, error codes, DTOs) is documented in the API repository (README and `docs/*-contract.md`). Read it before integrating an endpoint; do not guess fields.
 - Selection limits come from the designer config (`maxItems`, per-category limits keyed by category ID). Check category IDs, not translated names; never hardcode the 10/3 defaults.
 - Repeated products are allowed. Each selected instance has independent identity and design.
-- A designer product is one API product color. Its image is the color's transparent design image; embroidery zones are rectangles normalized to that image, not the viewport.
+- A designer product is one API product color. Its image is the color's transparent design image. Embroidery zones, the designer flag and displayScale belong to the API product and are shared by all its colors (the public API repeats them on each color); zones are rectangles normalized to the design image, not the viewport.
+- Product colors are picked from the API color palette (one per key per product); never type or hardcode color names or swatches.
 - Keep product design coordinates independent of composition placement.
 - Do not invent real image dimensions or physical proportions; use the sizes the API reports and the decoded size when they differ.
 - Missing images must have stable fallbacks, not broken requests or fake exportable products.

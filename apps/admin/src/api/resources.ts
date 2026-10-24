@@ -8,8 +8,9 @@ import type {
   Collection,
   CollectionInput,
   CollectionMember,
-  ColorDesigner,
+  ProductDesigner,
   ColorInput,
+  PaletteColor,
   DesignAsset,
   DesignAssetInput,
   DesignerSettings,
@@ -20,6 +21,7 @@ import type {
   OrderStatus,
   Product,
   ProductColor,
+  ProductCreateExtras,
   ProductInput,
   ProductListItem,
   ProductSize,
@@ -54,11 +56,12 @@ export const productsApi = {
   list: (query: PageQuery & { q?: string; categoryId?: string; isActive?: boolean } = {}) =>
     http.get<Paged<ProductListItem>>('admin/products', { query }),
   get: (productId: string) => http.get<Product>(`admin/products/${id(productId)}`),
-  create: (body: ProductInput) => http.post<Product>('admin/products', body),
+  create: (body: ProductInput & ProductCreateExtras) => http.post<Product>('admin/products', body),
   update: (productId: string, body: Partial<ProductInput> & { isActive?: boolean }) =>
     http.patch<Product>(`admin/products/${id(productId)}`, body),
   remove: (productId: string) => http.delete(`admin/products/${id(productId)}`),
 
+  palette: () => http.get<PaletteColor[]>('admin/color-palette'),
   addColor: (productId: string, body: ColorInput) =>
     http.post<ProductColor>(`admin/products/${id(productId)}/colors`, body),
   updateColor: (productId: string, colorId: string, body: Partial<ColorInput>) =>
@@ -74,31 +77,21 @@ export const productsApi = {
     http.delete(`admin/products/${id(productId)}/sizes/${id(sizeId)}`),
 }
 
-const colorPath = (productId: string, colorId: string) =>
-  `admin/products/${id(productId)}/colors/${id(colorId)}`
+const productPath = (productId: string) => `admin/products/${id(productId)}`
 
 export const designerApi = {
-  colorDesigner: (productId: string, colorId: string) =>
-    http.get<ColorDesigner>(`${colorPath(productId, colorId)}/designer`),
-  updateColorDesigner: (
+  productDesigner: (productId: string) =>
+    http.get<ProductDesigner>(`${productPath(productId)}/designer`),
+  updateProductDesigner: (
     productId: string,
-    colorId: string,
     body: { designerEnabled?: boolean; displayScale?: number },
-  ) => http.patch<ColorDesigner>(`${colorPath(productId, colorId)}/designer`, body),
-  addZone: (productId: string, colorId: string, body: ZoneInput) =>
-    http.post<EmbroideryZone>(`${colorPath(productId, colorId)}/embroidery-zones`, body),
-  updateZone: (
-    productId: string,
-    colorId: string,
-    zoneId: string,
-    body: Partial<Omit<ZoneInput, 'key'>>,
-  ) =>
-    http.patch<EmbroideryZone>(
-      `${colorPath(productId, colorId)}/embroidery-zones/${id(zoneId)}`,
-      body,
-    ),
-  removeZone: (productId: string, colorId: string, zoneId: string) =>
-    http.delete(`${colorPath(productId, colorId)}/embroidery-zones/${id(zoneId)}`),
+  ) => http.patch<ProductDesigner>(`${productPath(productId)}/designer`, body),
+  addZone: (productId: string, body: ZoneInput) =>
+    http.post<EmbroideryZone>(`${productPath(productId)}/embroidery-zones`, body),
+  updateZone: (productId: string, zoneId: string, body: Partial<Omit<ZoneInput, 'key'>>) =>
+    http.patch<EmbroideryZone>(`${productPath(productId)}/embroidery-zones/${id(zoneId)}`, body),
+  removeZone: (productId: string, zoneId: string) =>
+    http.delete(`${productPath(productId)}/embroidery-zones/${id(zoneId)}`),
 
   settings: () => http.get<DesignerSettings>('admin/designer/settings'),
   updateSettings: (body: { maxItems?: number; defaultBackgroundId?: string | null }) =>

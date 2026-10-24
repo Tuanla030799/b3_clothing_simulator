@@ -1,50 +1,72 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { Input, InputNumber, Modal, Textarea } from 'ant-design-vue'
-import { Flex, FormField, Select } from '@lituta/ui'
+import { Input, InputNumber, Textarea } from 'ant-design-vue'
+import { Col, FormField, Row, Select } from '@lituta/ui'
 import { fieldErrors } from '../../api/httpClient'
 import { productsApi } from '../../api/resources'
-import type { Category, Product } from '../../api/types'
+import type { Category, Product, ProductCreateExtras } from '../../api/types'
 import { useFeedback } from '../../composables/useFeedback'
+import { formatMoneyInput, parseMoneyInput } from '../../utils/money'
 import { SLUG_PATTERN, suggestSlug } from '../../utils/slug'
 
-/** Creates a draft product or edits its information (not colors, sizes or publishing). */
-const props = defineProps<{ product: Product | null; categories: readonly Category[] }>()
+/**
+ * Product information fields (not colors, sizes or publishing). Creates a draft product when
+ * `product` is null, otherwise updates it. The parent renders the submit button and calls `save`.
+ */
+const props = defineProps<{
+  product: Product | null
+  categories: readonly Category[]
+  /** Creating only: colors and sizes sent in the same request (validated by the parent). */
+  extras?: ProductCreateExtras
+}>()
 const emit = defineEmits<{ saved: [product: Product] }>()
-const open = defineModel<boolean>('open', { required: true })
 const feedback = useFeedback()
 const saving = ref(false)
 const errors = ref<Record<string, string>>({})
-const form = reactive({
-  categoryId: undefined as string | undefined,
-  name: '',
-  slug: '',
-  price: 0 as number | undefined,
-  description: '',
-  sortOrder: 0 as number | undefined,
-})
+
+type FormState = {
+  categoryId: string | undefined
+  name: string
+  slug: string
+  price: number | undefined
+  description: string
+  sortOrder: number | undefined
+}
+const form = reactive<FormState>(initialState())
 let slugTouched = false
 
-watch(open, (isOpen) => {
-  if (!isOpen) return
+function initialState(): FormState {
   const product = props.product
-  Object.assign(form, {
+  return {
     categoryId: product?.category.id,
     name: product?.name ?? '',
     slug: product?.slug ?? '',
-    price: product?.price ?? 0,
+    price: product?.price,
     description: product?.description ?? '',
     sortOrder: product?.sortOrder ?? 0,
-  })
-  slugTouched = Boolean(product)
+  }
+}
+
+function reset() {
+  Object.assign(form, initialState())
+  slugTouched = Boolean(props.product)
   errors.value = {}
-})
+}
+reset()
+// A saved or reloaded product replaces the draft.
+watch(() => [props.product?.id, props.product?.updatedAt], reset)
+
 watch(
   () => form.name,
   (name) => {
     if (!slugTouched) form.slug = suggestSlug(name)
   },
 )
+
+const dirty = computed(() => {
+  const initial = initialState()
+  return (Object.keys(initial) as (keyof FormState)[]).some((key) => form[key] !== initial[key])
+})
 
 const categoryOptions = computed(() =>
   props.categories.map((category) => ({
@@ -63,8 +85,8 @@ function validate() {
   return Object.keys(next).length === 0
 }
 
-async function save() {
-  if (!validate()) return
+async function save(): Promise<boolean> {
+  if (!validate()) return false
   saving.value = true
   const body = {
     categoryId: form.categoryId!,
@@ -77,30 +99,26 @@ async function save() {
   try {
     const saved = props.product
       ? await productsApi.update(props.product.id, body)
-      : await productsApi.create(body)
+      : await productsApi.create({ ...body, ...props.extras })
     feedback.success(props.product ? 'Đã lưu sản phẩm.' : 'Đã tạo sản phẩm nháp.')
-    open.value = false
     emit('saved', saved)
+    return true
   } catch (error) {
     errors.value = fieldErrors(error)
     feedback.error(error)
+    return false
   } finally {
     saving.value = false
   }
 }
+
+defineExpose({ save, reset, validate, saving, dirty, errors })
 </script>
 
 <template>
-  <Modal
-    v-model:open="open"
-    :title="product ? 'Sửa thông tin sản phẩm' : 'Thêm sản phẩm'"
-    ok-text="Lưu"
-    cancel-text="Hủy"
-    :confirm-loading="saving"
-    @ok="save"
-  >
-    <form novalidate @submit.prevent="save">
-      <Flex vertical gap="middle">
+  <form novalidate @submit.prevent="save">
+    <Row :gutter="[16, 16]">
+      <Col :xs="24" :md="12">
         <FormField for="product-category" label="Danh mục" :error="errors.categoryId" required>
           <template #default="{ id }">
             <Select
@@ -108,14 +126,19 @@ async function save() {
               v-model="form.categoryId"
               :options="categoryOptions"
               placeholder="Chọn danh mục"
+              size="small"
             />
           </template>
         </FormField>
+      </Col>
+      <Col :xs="24" :md="12">
         <FormField for="product-name" label="Tên" :error="errors.name" required>
           <template #default="{ id }">
             <Input :id="id" v-model:value="form.name" :maxlength="200" />
           </template>
         </FormField>
+      </Col>
+      <Col :span="24">
         <FormField
           for="product-slug"
           label="Slug"
@@ -132,38 +155,51 @@ async function save() {
             />
           </template>
         </FormField>
-        <Flex gap="large" wrap>
-          <FormField
-            for="product-price"
-            label="Giá (VND)"
-            description="Một giá cho mọi màu và size."
-            :error="errors.price"
-            required
-          >
-            <template #default="{ id }">
-              <InputNumber
-                :id="id"
-                v-model:value="form.price"
-                :min="0"
-                :max="1000000000"
-                :precision="0"
-                :step="1000"
-                class="w-48"
-              />
-            </template>
-          </FormField>
-          <FormField for="product-order" label="Thứ tự" :error="errors.sortOrder">
-            <template #default="{ id }">
-              <InputNumber
-                :id="id"
-                v-model:value="form.sortOrder"
-                :min="0"
-                :max="1000000"
-                :precision="0"
-              />
-            </template>
-          </FormField>
-        </Flex>
+      </Col>
+      <Col :xs="24" :md="12">
+        <FormField
+          for="product-price"
+          label="Giá (VND)"
+          description="Một giá cho mọi màu và size."
+          :error="errors.price"
+          required
+        >
+          <template #default="{ id }">
+            <InputNumber
+              :id="id"
+              v-model:value="form.price"
+              :min="0"
+              :max="1000000000"
+              :precision="0"
+              :step="1000"
+              :formatter="formatMoneyInput"
+              :parser="parseMoneyInput"
+              addon-after="₫"
+              style="width: 100%"
+            />
+          </template>
+        </FormField>
+      </Col>
+      <Col :xs="24" :md="12">
+        <FormField
+          for="product-order"
+          label="Thứ tự"
+          description="Số nhỏ hiển thị trước."
+          :error="errors.sortOrder"
+        >
+          <template #default="{ id }">
+            <InputNumber
+              :id="id"
+              v-model:value="form.sortOrder"
+              :min="0"
+              :max="1000000"
+              :precision="0"
+              style="width: 100%"
+            />
+          </template>
+        </FormField>
+      </Col>
+      <Col :span="24">
         <FormField for="product-description" label="Mô tả" :error="errors.description">
           <template #default="{ id }">
             <Textarea
@@ -175,8 +211,8 @@ async function save() {
             />
           </template>
         </FormField>
-        <button type="submit" hidden />
-      </Flex>
-    </form>
-  </Modal>
+      </Col>
+    </Row>
+    <button type="submit" hidden />
+  </form>
 </template>

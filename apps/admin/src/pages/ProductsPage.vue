@@ -2,14 +2,13 @@
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { Plus, Search } from '@lucide/vue'
-import { Input, Table, Tag, type TableColumnType } from 'ant-design-vue'
-import { Button, Flex, Link, Select, Typography } from '@lituta/ui'
+import { Input, Switch, Table, type TableColumnType } from 'ant-design-vue'
+import { Button, Col, Flex, Link, Row, Select, Typography } from '@lituta/ui'
 import { categoriesApi, productsApi } from '../api/resources'
 import type { Category, ProductListItem } from '../api/types'
 import PageHeader from '../components/PageHeader.vue'
 import { useFeedback } from '../composables/useFeedback'
 import { usePagedTable } from '../composables/usePagedTable'
-import ProductFormModal from '../features/catalog/ProductFormModal.vue'
 import { formatDateTime, formatPrice } from '../utils/format'
 
 const router = useRouter()
@@ -55,14 +54,41 @@ const columns: TableColumnType<ProductListItem>[] = [
   { title: 'Danh mục', key: 'category' },
   { title: 'Giá', key: 'price', align: 'right' },
   { title: 'Màu / size', key: 'variants', width: 110 },
-  { title: 'Trạng thái', key: 'status', width: 120 },
+  { title: 'Đang bán', key: 'status', width: 100 },
   { title: 'Cập nhật', key: 'updatedAt', width: 150 },
+  { title: '', key: 'actions', width: 140, align: 'right', fixed: 'right' },
 ]
 
-const creating = ref(false)
-function created(productId: string) {
-  creating.value = false
-  void router.push(`/san-pham/${productId}`)
+// --- publishing / delete ---
+const toggling = ref<string | null>(null)
+async function setActive(item: ProductListItem, isActive: boolean) {
+  toggling.value = item.id
+  try {
+    await productsApi.update(item.id, { isActive })
+    feedback.success(isActive ? 'Sản phẩm đang bán.' : 'Đã ẩn sản phẩm.')
+    void table.reload()
+  } catch (error) {
+    // 409 when the category is hidden or no color is on sale.
+    feedback.error(error)
+  } finally {
+    toggling.value = null
+  }
+}
+
+function remove(item: ProductListItem) {
+  feedback.confirmDelete(
+    `Xóa sản phẩm “${item.name}”?`,
+    'Xóa cả màu, size, vùng thêu và khỏi mọi bộ sưu tập. Đơn hàng đã đặt không bị ảnh hưởng.',
+    async () => {
+      try {
+        await productsApi.remove(item.id)
+        feedback.success('Đã xóa sản phẩm.')
+        void table.reload()
+      } catch (error) {
+        feedback.error(error)
+      }
+    },
+  )
 }
 </script>
 
@@ -72,37 +98,43 @@ function created(productId: string) {
     description="Sản phẩm mới là bản nháp; thêm màu (ảnh hiển thị + ảnh thiết kế) rồi bật bán."
   >
     <template #actions>
-      <Button @click="creating = true">
+      <Button @click="router.push('/san-pham/moi')">
         <template #icon><Plus /></template>
         Thêm sản phẩm
       </Button>
     </template>
   </PageHeader>
 
-  <Flex wrap gap="small" class="mb-4">
-    <form role="search" class="w-full max-w-xs" @submit.prevent="table.reload(true)">
-      <Input
-        v-model:value="filters.q"
-        placeholder="Tìm theo tên"
-        allow-clear
-        aria-label="Tìm theo tên"
-      >
-        <template #suffix><Search class="size-4" aria-hidden="true" /></template>
-      </Input>
-    </form>
-    <Select
-      v-model="filters.categoryId"
-      :options="categoryOptions"
-      aria-label="Lọc danh mục"
-      class="w-52"
-    />
-    <Select
-      v-model="filters.active"
-      :options="activeOptions"
-      aria-label="Lọc trạng thái"
-      class="w-48"
-    />
-  </Flex>
+  <Row :gutter="[12, 12]" class="mb-4">
+    <Col :xs="24" :sm="12" :lg="8" :xl="6">
+      <form role="search" @submit.prevent="table.reload(true)">
+        <Input
+          v-model:value="filters.q"
+          placeholder="Tìm theo tên"
+          allow-clear
+          aria-label="Tìm theo tên"
+        >
+          <template #suffix><Search class="size-4" aria-hidden="true" /></template>
+        </Input>
+      </form>
+    </Col>
+    <Col :xs="24" :sm="12" :lg="8" :xl="6">
+      <Select
+        v-model="filters.categoryId"
+        size="small"
+        :options="categoryOptions"
+        aria-label="Lọc danh mục"
+      />
+    </Col>
+    <Col :xs="24" :sm="12" :lg="8" :xl="6">
+      <Select
+        v-model="filters.active"
+        size="small"
+        :options="activeOptions"
+        aria-label="Lọc trạng thái"
+      />
+    </Col>
+  </Row>
 
   <Typography v-if="table.error.value" role="alert" class="mb-4 text-destructive">
     {{ table.error.value }}
@@ -114,7 +146,7 @@ function created(productId: string) {
     :data-source="table.rows.value"
     :loading="table.loading.value"
     :pagination="table.pagination.value"
-    :scroll="{ x: 800 }"
+    :scroll="{ x: 1040 }"
     @change="table.onChange"
   >
     <template #bodyCell="{ column, record }">
@@ -128,20 +160,31 @@ function created(productId: string) {
         {{ record.colorCount }} / {{ record.sizeCount }}
       </template>
       <template v-else-if="column.key === 'status'">
-        <Tag :color="record.isActive ? 'green' : 'default'">
-          {{ record.isActive ? 'Đang bán' : 'Nháp / ẩn' }}
-        </Tag>
+        <Switch
+          :checked="record.isActive"
+          :loading="toggling === record.id"
+          :aria-label="`Bán ${record.name}`"
+          @change="(value) => setActive(record as ProductListItem, Boolean(value))"
+        />
       </template>
       <template v-else-if="column.key === 'updatedAt'">{{
         formatDateTime(record.updatedAt)
       }}</template>
+      <template v-else-if="column.key === 'actions'">
+        <Flex justify="end" gap="small">
+          <Button
+            size="small"
+            variant="default"
+            :aria-label="`Sửa ${record.name}`"
+            @click="router.push(`/san-pham/${record.id}`)"
+          >
+            Sửa
+          </Button>
+          <Button size="small" variant="text" @click="remove(record as ProductListItem)">
+            Xóa
+          </Button>
+        </Flex>
+      </template>
     </template>
   </Table>
-
-  <ProductFormModal
-    v-model:open="creating"
-    :categories="categories"
-    :product="null"
-    @saved="(product) => created(product.id)"
-  />
 </template>

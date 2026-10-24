@@ -43,11 +43,38 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: 'Sản phẩm' },
       },
       {
+        path: 'san-pham/moi',
+        name: 'product-new',
+        component: () => import('./pages/ProductCreatePage.vue'),
+        meta: { title: 'Thêm sản phẩm' },
+      },
+      {
         path: 'san-pham/:id',
         name: 'product',
         component: () => import('./pages/ProductDetailPage.vue'),
         props: true,
         meta: { title: 'Sản phẩm' },
+      },
+      {
+        path: 'san-pham/:id/thiet-ke',
+        name: 'product-design',
+        component: () => import('./pages/ProductDesignPage.vue'),
+        props: true,
+        meta: { title: 'Thiết kế thêu' },
+      },
+      {
+        path: 'san-pham/:id/mau/moi',
+        name: 'color-new',
+        component: () => import('./pages/ColorPage.vue'),
+        props: true,
+        meta: { title: 'Thêm màu' },
+      },
+      {
+        path: 'san-pham/:id/mau/:colorId',
+        name: 'color',
+        component: () => import('./pages/ColorPage.vue'),
+        props: true,
+        meta: { title: 'Màu sản phẩm' },
       },
       {
         path: 'danh-muc',
@@ -60,6 +87,12 @@ export const routes: RouteRecordRaw[] = [
         name: 'collections',
         component: () => import('./pages/CollectionsPage.vue'),
         meta: { title: 'Bộ sưu tập' },
+      },
+      {
+        path: 'bo-suu-tap/moi',
+        name: 'collection-new',
+        component: () => import('./pages/CollectionCreatePage.vue'),
+        meta: { title: 'Thêm bộ sưu tập' },
       },
       {
         path: 'bo-suu-tap/:id',

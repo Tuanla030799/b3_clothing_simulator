@@ -1,18 +1,19 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { Pencil, Plus, Trash2 } from '@lucide/vue'
+import { RouterLink, useRouter } from 'vue-router'
+import { CircleCheck, CircleX, List, PenTool, Plus, Trash2 } from '@lucide/vue'
 import { Input, InputNumber, Spin, Switch, Table, Tag, type TableColumnType } from 'ant-design-vue'
-import { Button, EmptyState, Flex, Image, Typography } from '@lituta/ui'
+import { Button, Col, EmptyState, Flex, Image, Link, Row, Typography } from '@lituta/ui'
 import { errorMessage } from '../api/httpClient'
 import { categoriesApi, productsApi } from '../api/resources'
 import type { Category, Product, ProductColor, ProductSize } from '../api/types'
+import FormFooter from '../components/FormFooter.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { useFeedback } from '../composables/useFeedback'
-import ColorFormModal from '../features/catalog/ColorFormModal.vue'
-import ProductFormModal from '../features/catalog/ProductFormModal.vue'
-import ColorDesignerDrawer from '../features/designer/ColorDesignerDrawer.vue'
-import { formatPrice } from '../utils/format'
+import { useLeaveGuard } from '../composables/useLeaveGuard'
+import ColorSwatch from '../features/catalog/ColorSwatch.vue'
+import ProductForm from '../features/catalog/ProductForm.vue'
+import { formatDateTime, formatPrice } from '../utils/format'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
@@ -46,6 +47,21 @@ const activeColors = computed(
 const categoryActive = computed(
   () => categories.value.find((category) => category.id === product.value?.category.id)?.isActive,
 )
+// What the API checks before a product can be activated.
+const publishChecks = computed(() => [
+  {
+    label:
+      categoryActive.value === false
+        ? `Danh mục “${product.value?.category.name}” đang ẩn`
+        : 'Danh mục đang hiện',
+    ok: categoryActive.value !== false,
+  },
+  {
+    label: activeColors.value === 0 ? 'Chưa có màu đang bán' : `${activeColors.value} màu đang bán`,
+    ok: activeColors.value > 0,
+  },
+])
+const canPublish = computed(() => publishChecks.value.every((check) => check.ok))
 
 // --- publishing ---
 const publishing = ref(false)
@@ -72,6 +88,7 @@ function removeProduct() {
       try {
         await productsApi.remove(current.id)
         feedback.success('Đã xóa sản phẩm.')
+        allowLeave()
         void router.push('/san-pham')
       } catch (error) {
         feedback.error(error)
@@ -81,17 +98,17 @@ function removeProduct() {
 }
 
 // --- information ---
-const editingInfo = ref(false)
+const infoForm = ref<InstanceType<typeof ProductForm> | null>(null)
+const { allowLeave } = useLeaveGuard(() => Boolean(infoForm.value?.dirty))
+function infoSaved(saved: Product) {
+  product.value = { ...product.value!, ...saved }
+  allowLeave()
+  void router.push('/san-pham')
+}
 
 // --- colors ---
-const colorModalOpen = ref(false)
-const editingColor = ref<ProductColor | null>(null)
-const designerColor = ref<ProductColor | null>(null)
-
-function openColor(color: ProductColor | null) {
-  editingColor.value = color
-  colorModalOpen.value = true
-}
+const colorPath = (color: ProductColor | null) =>
+  `/san-pham/${props.id}/mau/${color ? color.id : 'moi'}`
 
 function removeColor(color: ProductColor) {
   const productId = props.id
@@ -114,8 +131,7 @@ const colorColumns: TableColumnType<ProductColor>[] = [
   { title: 'Ảnh', key: 'images', width: 150 },
   { title: 'Màu', key: 'name' },
   { title: 'Đang bán', key: 'isActive', width: 100 },
-  { title: 'Thiết kế', key: 'designer', width: 150 },
-  { title: '', key: 'actions', width: 260, align: 'right' },
+  { title: '', key: 'actions', width: 140, align: 'right', fixed: 'right' },
 ]
 
 // --- sizes ---
@@ -186,25 +202,10 @@ function removeSize(size: ProductSize) {
       "
       :back="{ to: '/san-pham', label: 'Danh sách sản phẩm' }"
     >
-      <template v-if="product" #actions>
-        <Flex align="center" gap="small">
-          <Switch
-            :checked="product.isActive"
-            :loading="publishing"
-            aria-label="Đang bán"
-            @change="(value) => setActive(Boolean(value))"
-          />
-          <Typography as="span" variant="body">{{
-            product.isActive ? 'Đang bán' : 'Nháp / ẩn'
-          }}</Typography>
-        </Flex>
-        <Button variant="default" @click="editingInfo = true">
-          <template #icon><Pencil /></template>
-          Sửa thông tin
-        </Button>
-        <Button variant="text" @click="removeProduct">
-          <template #icon><Trash2 /></template>
-          Xóa
+      <template #actions>
+        <Button variant="default" @click="router.push('/san-pham')">
+          <template #icon><List /></template>
+          Về danh sách sản phẩm
         </Button>
       </template>
     </PageHeader>
@@ -215,164 +216,237 @@ function removeSize(size: ProductSize) {
       </template>
     </EmptyState>
 
-    <Flex v-else-if="product" vertical gap="large">
-      <Typography
-        v-if="!product.isActive && (activeColors === 0 || categoryActive === false)"
-        variant="caption"
-        role="note"
-      >
-        Để bật bán cần: danh mục đang hiện
-        <template v-if="categoryActive === false">
-          (danh mục “{{ product.category.name }}” đang ẩn)</template
-        >
-        và ít nhất một màu đang bán<template v-if="activeColors === 0"> (chưa có)</template>.
-      </Typography>
-
-      <section aria-labelledby="colors-heading" class="rounded-xl border bg-card p-4">
-        <Flex vertical gap="middle">
-          <Flex align="center" justify="space-between" gap="small">
-            <Typography id="colors-heading" as="h2" variant="subheading">
-              Màu ({{ product.colors.length }})
-            </Typography>
-            <Button size="small" @click="openColor(null)">
-              <template #icon><Plus /></template>
-              Thêm màu
-            </Button>
-          </Flex>
-          <Table
-            row-key="id"
-            :columns="colorColumns"
-            :data-source="product.colors"
-            :pagination="false"
-            :scroll="{ x: 760 }"
-          >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'images'">
-                <Flex gap="small">
-                  <Image
-                    :src="record.displayImage.url"
-                    alt="Ảnh hiển thị"
-                    class="size-14 rounded border bg-muted"
-                  />
-                  <Image
-                    :src="record.designImage.url"
-                    alt="Ảnh thiết kế"
-                    class="size-14 rounded border bg-muted"
-                  />
-                </Flex>
-              </template>
-              <template v-else-if="column.key === 'name'">
-                <Flex align="center" gap="small">
-                  <span
-                    v-if="record.hexCode"
-                    class="size-4 shrink-0 rounded-full border"
-                    :style="{ backgroundColor: record.hexCode }"
-                    aria-hidden="true"
-                  />
-                  <span>{{ record.name }}</span>
-                </Flex>
-                <Typography variant="caption">{{ record.hexCode ?? 'Không có mã màu' }}</Typography>
-              </template>
-              <template v-else-if="column.key === 'isActive'">
-                <Tag :color="record.isActive ? 'green' : 'default'">{{
-                  record.isActive ? 'Có' : 'Không'
-                }}</Tag>
-              </template>
-              <template v-else-if="column.key === 'designer'">
-                <Tag :color="record.designerEnabled ? 'green' : 'default'">
-                  {{ record.designerEnabled ? 'Đang bật' : 'Tắt' }}
-                </Tag>
-                <Typography variant="caption">Tỉ lệ {{ record.displayScale }}</Typography>
-              </template>
-              <template v-else-if="column.key === 'actions'">
-                <Flex justify="end" gap="small" wrap>
-                  <Button size="small" @click="designerColor = record as ProductColor"
-                    >Vùng thêu</Button
-                  >
-                  <Button size="small" variant="default" @click="openColor(record as ProductColor)"
-                    >Sửa</Button
-                  >
-                  <Button size="small" variant="text" @click="removeColor(record as ProductColor)"
-                    >Xóa</Button
-                  >
-                </Flex>
-              </template>
-            </template>
-          </Table>
-        </Flex>
-      </section>
-
-      <section aria-labelledby="sizes-heading" class="rounded-xl border bg-card p-4">
-        <Flex vertical gap="middle">
-          <Flex vertical :gap="4">
-            <Typography id="sizes-heading" as="h2" variant="subheading">
-              Size ({{ product.sizes.length }})
-            </Typography>
-            <Typography variant="caption">
-              Dùng chung cho mọi màu. Không có size nào nghĩa là khách không cần chọn size.
-            </Typography>
-          </Flex>
-          <Flex as="ul" vertical gap="small">
-            <li v-for="size in product.sizes" :key="size.id">
-              <Flex v-if="sizeDrafts[size.id]" align="center" gap="small" wrap>
-                <Input
-                  v-model:value="sizeDrafts[size.id]!.name"
-                  :maxlength="50"
-                  :aria-label="`Tên size ${size.name}`"
-                  class="w-40"
-                />
-                <InputNumber
-                  v-model:value="sizeDrafts[size.id]!.sortOrder"
-                  :min="0"
-                  :max="1000000"
-                  :precision="0"
-                  :aria-label="`Thứ tự size ${size.name}`"
-                  class="w-24"
-                />
-                <Button size="small" variant="default" @click="saveSize(size)">Lưu</Button>
-                <Button size="small" variant="text" @click="removeSize(size)">Xóa</Button>
-              </Flex>
-            </li>
-          </Flex>
-          <form class="max-w-sm" @submit.prevent="addSize">
-            <Flex gap="small">
-              <Input
-                v-model:value="newSize"
-                placeholder="Ví dụ: 0-3 tháng"
-                :maxlength="50"
-                aria-label="Size mới"
+    <Row v-else-if="product" :gutter="[24, 24]">
+      <Col :xs="24" :lg="16">
+        <Flex vertical gap="large">
+          <section aria-labelledby="info-heading" class="rounded-xl border bg-card p-4">
+            <Flex vertical gap="middle">
+              <Typography id="info-heading" as="h2" variant="subheading">Thông tin</Typography>
+              <ProductForm
+                ref="infoForm"
+                :product="product"
+                :categories="categories"
+                @saved="infoSaved"
               />
-              <Button
-                html-type="submit"
-                size="middle"
-                :loading="addingSize"
-                :disabled="!newSize.trim()"
+              <FormFooter
+                submit-label="Lưu thông tin"
+                :saving="infoForm?.saving"
+                :dirty="infoForm?.dirty"
+                @submit="infoForm?.save()"
+                @reset="infoForm?.reset()"
+              />
+            </Flex>
+          </section>
+          <section aria-labelledby="colors-heading" class="rounded-xl border bg-card p-4">
+            <Flex vertical gap="middle">
+              <Flex align="center" justify="space-between" gap="small">
+                <Typography id="colors-heading" as="h2" variant="subheading">
+                  Màu ({{ product.colors.length }})
+                </Typography>
+                <Button size="small" @click="router.push(colorPath(null))">
+                  <template #icon><Plus /></template>
+                  Thêm màu
+                </Button>
+              </Flex>
+              <Table
+                row-key="id"
+                :columns="colorColumns"
+                :data-source="product.colors"
+                :pagination="false"
+                :scroll="{ x: 520 }"
               >
-                Thêm size
+                <template #bodyCell="{ column, record }">
+                  <template v-if="column.key === 'images'">
+                    <Flex gap="small">
+                      <Image
+                        :src="record.displayImage.url"
+                        alt="Ảnh hiển thị"
+                        class="size-14 rounded border bg-muted"
+                      />
+                      <Image
+                        :src="record.designImage.url"
+                        alt="Ảnh thiết kế"
+                        class="size-14 rounded border bg-muted"
+                      />
+                    </Flex>
+                  </template>
+                  <template v-else-if="column.key === 'name'">
+                    <Flex align="center" gap="small">
+                      <ColorSwatch :hex-code="record.hexCode" />
+                      <Link :as="RouterLink" :to="colorPath(record as ProductColor)">{{
+                        record.name
+                      }}</Link>
+                    </Flex>
+                  </template>
+                  <template v-else-if="column.key === 'isActive'">
+                    <Tag :color="record.isActive ? 'green' : 'default'">{{
+                      record.isActive ? 'Có' : 'Không'
+                    }}</Tag>
+                  </template>
+                  <template v-else-if="column.key === 'actions'">
+                    <Flex justify="end" gap="small">
+                      <Button
+                        size="small"
+                        variant="default"
+                        :aria-label="`Sửa màu ${record.name}`"
+                        @click="router.push(colorPath(record as ProductColor))"
+                        >Sửa</Button
+                      >
+                      <Button
+                        size="small"
+                        variant="text"
+                        @click="removeColor(record as ProductColor)"
+                        >Xóa</Button
+                      >
+                    </Flex>
+                  </template>
+                </template>
+              </Table>
+            </Flex>
+          </section>
+
+          <section aria-labelledby="sizes-heading" class="rounded-xl border bg-card p-4">
+            <Flex vertical gap="middle">
+              <Flex vertical :gap="4">
+                <Typography id="sizes-heading" as="h2" variant="subheading">
+                  Size ({{ product.sizes.length }})
+                </Typography>
+                <Typography variant="caption">
+                  Dùng chung cho mọi màu. Không có size nào nghĩa là khách không cần chọn size.
+                </Typography>
+              </Flex>
+              <Flex as="ul" vertical gap="small">
+                <li v-for="size in product.sizes" :key="size.id">
+                  <Flex v-if="sizeDrafts[size.id]" align="center" gap="small" wrap>
+                    <Input
+                      v-model:value="sizeDrafts[size.id]!.name"
+                      :maxlength="50"
+                      :aria-label="`Tên size ${size.name}`"
+                      class="w-40"
+                    />
+                    <InputNumber
+                      v-model:value="sizeDrafts[size.id]!.sortOrder"
+                      :min="0"
+                      :max="1000000"
+                      :precision="0"
+                      :aria-label="`Thứ tự size ${size.name}`"
+                      class="w-24"
+                    />
+                    <Button size="small" variant="default" @click="saveSize(size)">Lưu</Button>
+                    <Button size="small" variant="text" @click="removeSize(size)">Xóa</Button>
+                  </Flex>
+                </li>
+              </Flex>
+              <form class="max-w-sm" @submit.prevent="addSize">
+                <Flex gap="small">
+                  <Input
+                    v-model:value="newSize"
+                    placeholder="Ví dụ: 0-3 tháng"
+                    :maxlength="50"
+                    aria-label="Size mới"
+                  />
+                  <Button
+                    html-type="submit"
+                    size="small"
+                    :loading="addingSize"
+                    :disabled="!newSize.trim()"
+                  >
+                    Thêm size
+                  </Button>
+                </Flex>
+              </form>
+            </Flex>
+          </section>
+        </Flex>
+      </Col>
+
+      <Col :xs="24" :lg="8">
+        <Flex vertical gap="large" class="lg:sticky lg:top-4">
+          <section aria-labelledby="publish-heading" class="rounded-xl border bg-card p-4">
+            <Flex vertical gap="middle">
+              <Typography id="publish-heading" as="h2" variant="subheading">Bán hàng</Typography>
+              <Flex align="center" gap="small">
+                <Switch
+                  id="product-active"
+                  :checked="product.isActive"
+                  :loading="publishing"
+                  :disabled="!product.isActive && !canPublish"
+                  @change="(value) => setActive(Boolean(value))"
+                />
+                <label for="product-active">
+                  <Typography as="span">{{
+                    product.isActive ? 'Đang bán' : 'Nháp / ẩn'
+                  }}</Typography>
+                </label>
+              </Flex>
+              <Flex as="ul" vertical gap="small" aria-label="Điều kiện bật bán">
+                <li v-for="check in publishChecks" :key="check.label">
+                  <Flex align="center" gap="small">
+                    <CircleCheck
+                      v-if="check.ok"
+                      class="size-4 shrink-0 text-primary"
+                      aria-hidden="true"
+                    />
+                    <CircleX v-else class="size-4 shrink-0 text-destructive" aria-hidden="true" />
+                    <Typography as="span" variant="caption">
+                      <span class="sr-only">{{ check.ok ? 'Đạt:' : 'Chưa đạt:' }}</span>
+                      {{ check.label }}
+                    </Typography>
+                  </Flex>
+                </li>
+              </Flex>
+              <Typography variant="caption">
+                {{ product.sizes.length ? `${product.sizes.length} size` : 'Không cần chọn size' }}
+                · Cập nhật {{ formatDateTime(product.updatedAt) }}
+              </Typography>
+            </Flex>
+          </section>
+
+          <section aria-labelledby="design-heading" class="rounded-xl border bg-card p-4">
+            <Flex vertical gap="middle">
+              <Typography id="design-heading" as="h2" variant="subheading"
+                >Thiết kế thêu</Typography
+              >
+              <Flex wrap gap="small">
+                <Tag :color="product.designerEnabled ? 'green' : 'default'">
+                  {{ product.designerEnabled ? 'Khách đang thiết kế được' : 'Đang tắt' }}
+                </Tag>
+                <Tag>Tỉ lệ {{ product.displayScale }}</Tag>
+              </Flex>
+              <Typography variant="caption">
+                Vùng thêu đặt một lần cho sản phẩm và dùng chung cho mọi màu; ảnh thiết kế các màu
+                cần cùng khung.
+              </Typography>
+              <Button
+                variant="default"
+                class="self-start"
+                :disabled="product.colors.length === 0"
+                @click="router.push(`/san-pham/${id}/thiet-ke`)"
+              >
+                <template #icon><PenTool /></template>
+                Cấu hình vùng thêu
+              </Button>
+              <Typography v-if="product.colors.length === 0" variant="caption">
+                Thêm màu (có ảnh thiết kế) trước.
+              </Typography>
+            </Flex>
+          </section>
+
+          <section aria-labelledby="danger-heading" class="rounded-xl border bg-card p-4">
+            <Flex vertical gap="middle">
+              <Typography id="danger-heading" as="h2" variant="subheading">Xóa sản phẩm</Typography>
+              <Typography variant="caption">
+                Xóa cả màu, size, vùng thêu và khỏi mọi bộ sưu tập. Đơn hàng đã đặt không bị ảnh
+                hưởng.
+              </Typography>
+              <Button variant="destructive" class="self-start" @click="removeProduct">
+                <template #icon><Trash2 /></template>
+                Xóa sản phẩm
               </Button>
             </Flex>
-          </form>
+          </section>
         </Flex>
-      </section>
-    </Flex>
-
-    <ProductFormModal
-      v-model:open="editingInfo"
-      :product="product"
-      :categories="categories"
-      @saved="(saved) => (product = { ...product!, ...saved })"
-    />
-    <ColorFormModal
-      v-model:open="colorModalOpen"
-      :product-id="id"
-      :color="editingColor"
-      @saved="load"
-    />
-    <ColorDesignerDrawer
-      :product-id="id"
-      :color="designerColor"
-      @close="designerColor = null"
-      @changed="load"
-    />
+      </Col>
+    </Row>
   </Spin>
 </template>

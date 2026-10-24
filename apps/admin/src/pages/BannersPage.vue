@@ -248,7 +248,7 @@ function remove(banner: Banner) {
           </FormField>
           <FormField for="banner-active" label="Hiện trên trang chủ">
             <template #default="{ id }">
-              <Switch :id="id" v-model:checked="form.isActive" />
+              <Switch :id="id" v-model:checked="form.isActive" class="self-start" />
             </template>
           </FormField>
         </Flex>

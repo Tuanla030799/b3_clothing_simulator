@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { linkUrlProblem } from './linkUrl'
+import { formatMoneyInput, formatVnd, parseMoneyInput } from './money'
 import { ORDER_TRANSITIONS, quoteRule, statusChangeProblem } from './orderStatus'
 import { SLUG_PATTERN, suggestSlug } from './slug'
 
@@ -56,5 +57,29 @@ describe('order status rules', () => {
     expect(quoteRule('DELIVERED').allowed).toBe(false)
     expect(quoteRule('PENDING')).toEqual({ allowed: true, noteRequired: false })
     expect(quoteRule('SHIPPING')).toEqual({ allowed: true, noteRequired: true })
+  })
+})
+
+describe('money', () => {
+  it('groups typed amounts by three with commas and reads them back as digits', () => {
+    for (const [typed, shown] of [
+      ['', ''],
+      ['5', '5'],
+      ['999', '999'],
+      ['1000', '1,000'],
+      ['1500000', '1,500,000'],
+      [1000000000, '1,000,000,000'],
+      ['1,50a0', '1,500'],
+    ] as const) {
+      expect(formatMoneyInput(typed)).toBe(shown)
+      expect(parseMoneyInput(formatMoneyInput(typed))).toBe(String(typed).replace(/\D/g, ''))
+    }
+    expect(parseMoneyInput('1,500,000 ₫')).toBe('1500000')
+    expect(parseMoneyInput(undefined)).toBe('')
+  })
+
+  it('shows amounts in Vietnamese dong', () => {
+    expect(formatVnd(199000).replace(/\s/g, ' ')).toBe('199.000 ₫')
+    expect(formatVnd(0).replace(/\s/g, ' ')).toBe('0 ₫')
   })
 })

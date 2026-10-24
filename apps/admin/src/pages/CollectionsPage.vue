@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { Plus } from '@lucide/vue'
 import { Switch, Table, type TableColumnType } from 'ant-design-vue'
@@ -9,7 +8,6 @@ import type { Collection } from '../api/types'
 import PageHeader from '../components/PageHeader.vue'
 import { useFeedback } from '../composables/useFeedback'
 import { usePagedTable } from '../composables/usePagedTable'
-import CollectionFormModal from '../features/catalog/CollectionFormModal.vue'
 
 const router = useRouter()
 const feedback = useFeedback()
@@ -23,10 +21,8 @@ const columns: TableColumnType<Collection>[] = [
   { title: 'Thứ tự', dataIndex: 'sortOrder', key: 'sortOrder', width: 90 },
   { title: 'Hiện', key: 'isActive', width: 90 },
   { title: 'Nổi bật', key: 'isFeatured', width: 90 },
-  { title: '', key: 'actions', width: 90, align: 'right' },
+  { title: '', key: 'actions', width: 140, align: 'right', fixed: 'right' },
 ]
-
-const creating = ref(false)
 
 async function toggle(collection: Collection, field: 'isActive' | 'isFeatured', value: boolean) {
   try {
@@ -60,7 +56,7 @@ function remove(collection: Collection) {
     description="Nhóm sản phẩm theo mùa hoặc chủ đề. Bộ sưu tập nổi bật (và đang hiện) xuất hiện trên trang chủ."
   >
     <template #actions>
-      <Button @click="creating = true">
+      <Button @click="router.push('/bo-suu-tap/moi')">
         <template #icon><Plus /></template>
         Thêm bộ sưu tập
       </Button>
@@ -104,16 +100,18 @@ function remove(collection: Collection) {
         />
       </template>
       <template v-else-if="column.key === 'actions'">
-        <Flex justify="end">
+        <Flex justify="end" gap="small">
+          <Button
+            size="small"
+            variant="default"
+            :aria-label="`Sửa ${record.name}`"
+            @click="router.push(`/bo-suu-tap/${record.id}`)"
+          >
+            Sửa
+          </Button>
           <Button size="small" variant="text" @click="remove(record as Collection)">Xóa</Button>
         </Flex>
       </template>
     </template>
   </Table>
-
-  <CollectionFormModal
-    v-model:open="creating"
-    :collection="null"
-    @saved="(collection) => router.push(`/bo-suu-tap/${collection.id}`)"
-  />
 </template>

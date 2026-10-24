@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router'
 import { Search } from '@lucide/vue'
 import { Input, RangePicker, Table, Tag, type TableColumnType } from 'ant-design-vue'
 import type { Dayjs } from 'dayjs'
-import { Flex, Link, Select, Typography } from '@lituta/ui'
+import { Col, Link, Row, Select, Typography } from '@lituta/ui'
 import { ordersApi } from '../api/resources'
 import { ORDER_STATUSES, type OrderListItem, type OrderStatus } from '../api/types'
 import PageHeader from '../components/PageHeader.vue'
@@ -57,30 +57,37 @@ const columns: TableColumnType<OrderListItem>[] = [
     description="Yêu cầu đặt hàng của khách: liên hệ, báo phí thêu, xác nhận và giao."
   />
 
-  <Flex wrap gap="small" class="mb-4">
-    <form role="search" class="w-full max-w-xs" @submit.prevent="table.reload(true)">
-      <Input
-        v-model:value="filters.q"
-        placeholder="Mã đơn, tên hoặc SĐT"
-        allow-clear
-        aria-label="Tìm đơn"
-      >
-        <template #suffix><Search class="size-4" aria-hidden="true" /></template>
-      </Input>
-    </form>
-    <Select
-      v-model="filters.status"
-      :options="statusOptions"
-      aria-label="Lọc trạng thái"
-      class="w-48"
-    />
-    <RangePicker
-      v-model:value="filters.range"
-      format="DD/MM/YYYY"
-      :placeholder="['Từ ngày', 'Đến ngày']"
-      aria-label="Khoảng ngày đặt"
-    />
-  </Flex>
+  <Row :gutter="[12, 12]" class="mb-4">
+    <Col :xs="24" :sm="12" :lg="8" :xl="6">
+      <form role="search" @submit.prevent="table.reload(true)">
+        <Input
+          v-model:value="filters.q"
+          placeholder="Mã đơn, tên hoặc SĐT"
+          allow-clear
+          aria-label="Tìm đơn"
+        >
+          <template #suffix><Search class="size-4" aria-hidden="true" /></template>
+        </Input>
+      </form>
+    </Col>
+    <Col :xs="24" :sm="12" :lg="8" :xl="6">
+      <Select
+        v-model="filters.status"
+        size="small"
+        :options="statusOptions"
+        aria-label="Lọc trạng thái"
+      />
+    </Col>
+    <Col :xs="24" :sm="12" :lg="8" :xl="6">
+      <RangePicker
+        v-model:value="filters.range"
+        format="DD/MM/YYYY"
+        :placeholder="['Từ ngày', 'Đến ngày']"
+        aria-label="Khoảng ngày đặt"
+        class="w-full"
+      />
+    </Col>
+  </Row>
 
   <Typography v-if="table.error.value" role="alert" class="mb-4 text-destructive">
     {{ table.error.value }}
