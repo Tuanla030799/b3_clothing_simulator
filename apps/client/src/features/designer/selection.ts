@@ -3,6 +3,10 @@ import type { CategoryId, Product, SelectionRules } from './types'
 /*
  * Gift-set selection rules as pure functions. They never mutate their input and read every limit
  * from the given SelectionRules, so the UI state (useSelection) and tests share one source of truth.
+ *
+ * Two limits: an order holds at most `maxOrderItems` items (adding is blocked beyond it), and the
+ * set picture shows at most `maxItems` items within the per-category limits. Items outside the
+ * picture are still designed and ordered; `pictureIds` decides which items are drawn.
  */
 
 /** One selected item. Several items may share a productId; instanceId is unique per addition. */
@@ -25,8 +29,8 @@ export interface SelectionCatalog {
 
 export type AddBlockReason =
   | { readonly code: 'unknown-product' }
+  /** The order already holds `limit` items (maxOrderItems). */
   | { readonly code: 'max-items'; readonly limit: number }
-  | { readonly code: 'category-limit'; readonly categoryId: CategoryId; readonly limit: number }
   /** The set cannot change right now (an image is being created). */
   | { readonly code: 'locked' }
 
@@ -51,10 +55,7 @@ export function selectedCategoryIds(
   })
 }
 
-/**
- * Whether one more instance of the product may be added. The total limit is reported before a
- * category limit when both are reached.
- */
+/** Whether one more instance of the product may be added to the order. */
 export function checkCanAdd(
   items: readonly SelectedItem[],
   productId: string,
@@ -62,26 +63,33 @@ export function checkCanAdd(
 ): AddCheck {
   const product = findProduct(catalog, productId)
   if (!product) return { ok: false, reason: { code: 'unknown-product' } }
-
-  const { maxItems, categoryLimits } = catalog.rules
-  if (items.length >= maxItems) {
-    return { ok: false, reason: { code: 'max-items', limit: maxItems } }
+  const { maxOrderItems } = catalog.rules
+  if (items.length >= maxOrderItems) {
+    return { ok: false, reason: { code: 'max-items', limit: maxOrderItems } }
   }
-
-  const categoryLimit = categoryLimits[product.categoryId]
-  if (categoryLimit !== undefined) {
-    const inCategory = selectedCategoryIds(items, catalog).filter(
-      (id) => id === product.categoryId,
-    ).length
-    if (inCategory >= categoryLimit) {
-      return {
-        ok: false,
-        reason: { code: 'category-limit', categoryId: product.categoryId, limit: categoryLimit },
-      }
-    }
-  }
-
   return { ok: true, product }
+}
+
+/**
+ * The items drawn in the set picture: in the order they were added, each item is taken while the
+ * picture has room (`maxItems`) and its category is under its limit. Later items that do not fit
+ * are skipped, so a hat added after three shirts can still be drawn when shirts are limited.
+ */
+export function pictureIds(items: readonly SelectedItem[], catalog: SelectionCatalog): Set<string> {
+  const { maxItems, categoryLimits } = catalog.rules
+  const chosen = new Set<string>()
+  const perCategory = new Map<CategoryId, number>()
+  for (const item of items) {
+    if (chosen.size >= maxItems) break
+    const product = findProduct(catalog, item.productId)
+    if (!product) continue
+    const count = perCategory.get(product.categoryId) ?? 0
+    const limit = categoryLimits[product.categoryId]
+    if (limit !== undefined && count >= limit) continue
+    perCategory.set(product.categoryId, count + 1)
+    chosen.add(item.instanceId)
+  }
+  return chosen
 }
 
 /** Appends a new instance and makes it active. A rejected add returns the same state object. */

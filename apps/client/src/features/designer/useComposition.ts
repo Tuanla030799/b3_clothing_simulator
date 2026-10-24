@@ -26,6 +26,9 @@ import type { Selection } from './useSelection'
  * The composition only borrows them (never creates or revokes object URLs). The only resources it
  * owns are decoded background images (bundled asset URLs, nothing to revoke).
  *
+ * Only the items of the set picture (selection.pictureEntries) are laid out, drawn, checked and
+ * exported; the other items of the order are designed in the item editor but not drawn.
+ *
  * The layout is derived, not stored: it depends only on the selected items (order, product
  * aspect ratio, displayScale, category priority) and the composition size. Designs, decode order
  * and the viewport never change placements.
@@ -138,7 +141,7 @@ export function useComposition(
   }
 
   const layoutItems = computed(() =>
-    selection.entries.value.map(({ item, product }) => ({
+    selection.pictureEntries.value.map(({ item, product }) => ({
       instanceId: item.instanceId,
       categoryId: product.categoryId,
       aspectRatio: aspectOf(product),
@@ -177,7 +180,7 @@ export function useComposition(
 
   const issues = computed<ResourceIssue[]>(() => {
     const list: ResourceIssue[] = []
-    for (const { item, product, position } of selection.entries.value) {
+    for (const { item, product, position } of selection.pictureEntries.value) {
       const base = { instanceId: item.instanceId, position, productName: product.name }
       const productState = designs.productImageState(product)
       if (!product.image.src || productState?.status === 'error') {
@@ -209,7 +212,7 @@ export function useComposition(
   })
 
   const status = computed<'empty' | 'loading' | 'ready' | 'incomplete'>(() => {
-    if (selection.entries.value.length === 0) return 'empty'
+    if (selection.pictureEntries.value.length === 0) return 'empty'
     if (issues.value.some((issue) => issue.status === 'error')) return 'incomplete'
     if (issues.value.length > 0 || (pendingBackgroundId.value && !background.value))
       return 'loading'
@@ -223,7 +226,7 @@ export function useComposition(
    * means the neutral fill is the intended background.
    */
   const exportReadiness = computed<ExportReadiness>(() => {
-    const entries = selection.entries.value
+    const entries = selection.pictureEntries.value
     if (entries.length === 0) return { ok: false, code: 'empty' }
     if (designs.hasInvalidTextEdits.value) return { ok: false, code: 'invalid-edit' }
     if (designs.hasPendingEdits.value) return { ok: false, code: 'pending-edit' }
@@ -252,7 +255,7 @@ export function useComposition(
   /** Starts loading everything the selected items need (shared caches; no duplicate decodes). */
   function prepare() {
     ensureBackground()
-    for (const { item, product } of selection.entries.value) {
+    for (const { item, product } of selection.pictureEntries.value) {
       void designs.loadProductImage(product)
       for (const zone of designs.zonesOf(product)) {
         const design = designs.zoneDesign(item.instanceId, zone.id)
@@ -273,7 +276,7 @@ export function useComposition(
 
   // Prepare while the set view is shown, and again whenever items or designs change.
   watch(
-    [mode, () => selection.entries.value, () => designs.designs.value],
+    [mode, () => selection.pictureEntries.value, () => designs.designs.value],
     () => {
       if (mode.value === 'set') prepare()
     },

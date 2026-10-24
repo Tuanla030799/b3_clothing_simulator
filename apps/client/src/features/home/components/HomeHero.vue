@@ -3,6 +3,7 @@ import { useRouter } from 'vue-router'
 import { Button, Container, Flex, Typography } from '@lituta/ui'
 import { publicCatalog } from '../../../api/publicCatalog'
 import { useRemoteData } from '../../../api/useRemoteData'
+import { useCart } from '../../cart/cart'
 import HomeBanner from './HomeBanner.vue'
 
 /*
@@ -12,6 +13,7 @@ import HomeBanner from './HomeBanner.vue'
  * connection problems with a retry.
  */
 const router = useRouter()
+const cart = useCart()
 const banners = useRemoteData((signal) => publicCatalog.banners(signal))
 </script>
 
@@ -32,7 +34,12 @@ const banners = useRemoteData((signal) => publicCatalog.banners(signal))
         <Typography variant="body">
           Thêu tên hoặc logo theo ý bạn lên từng món, rồi xem trước cả bộ quà.
         </Typography>
-        <Button @click="router.push('/thiet-ke')">Bắt đầu thiết kế</Button>
+        <Flex wrap gap="small">
+          <Button @click="router.push('/bo-suu-tap')">Chọn bộ sưu tập</Button>
+          <Button v-if="cart.count.value" variant="default" @click="router.push('/thiet-ke')">
+            Thiết kế giỏ hàng
+          </Button>
+        </Flex>
       </Flex>
     </Container>
   </section>

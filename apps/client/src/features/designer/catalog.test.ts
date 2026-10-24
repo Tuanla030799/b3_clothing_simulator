@@ -6,8 +6,8 @@ import type {
   PublicDesignerProduct,
   PublicProductListItem,
 } from '../../api/publicCatalog'
-import { categoryName, loadDesignerCatalog } from './catalog'
-import { checkCanAdd } from './selection'
+import { categoryName, loadDesignerCatalog, type DesignerScope } from './catalog'
+import { pictureIds } from './selection'
 
 const file = (name: string, width = 1448, height = 1086) => ({
   id: `file-${name}`,
@@ -20,7 +20,11 @@ const shirts = { id: 'cat-shirt', name: 'Áo', slug: 'ao' }
 const hats = { id: 'cat-hat', name: 'Mũ', slug: 'mu' }
 
 const config: PublicDesignerConfig = {
-  selection: { maxItems: 10, categoryLimits: [{ categoryId: shirts.id, maxItems: 3 }] },
+  selection: {
+    maxItems: 10,
+    maxOrderItems: 50,
+    categoryLimits: [{ categoryId: shirts.id, maxItems: 3 }],
+  },
   text: {
     font: { id: 'dancing-script-600', family: 'Dancing Script', weight: 600, lineHeight: 1.3 },
     colors: [{ id: 'dark-brown', name: 'Nâu đậm', value: '#4a3426' }],
@@ -112,16 +116,36 @@ function source(overrides: Partial<PublicCatalogApi> = {}): PublicCatalogApi {
     allCollections: notUsed,
     collection: notUsed,
     collectionProducts: notUsed,
-    allProducts: async () => [listItem('bodysuit'), listItem('mu-sss')],
+    allProducts: notUsed,
+    allCollectionProducts: async () => [listItem('bodysuit'), listItem('mu-sss')],
     productDesigner: async (slug) => designer[slug]!,
     designerConfig: async () => config,
     ...overrides,
   }
 }
 
+// The cart lists a product once per item; the catalog loads each product once.
+const cart: DesignerScope = { kind: 'products', slugs: ['bodysuit', 'mu-sss', 'bodysuit'] }
+
 describe('loadDesignerCatalog', () => {
+  it('loads only the products of a collection when designing that collection', async () => {
+    const requested: string[] = []
+    const catalog = await loadDesignerCatalog(
+      { kind: 'collection', slug: 'mua-he' },
+      undefined,
+      source({
+        allCollectionProducts: async (slug) => {
+          requested.push(slug)
+          return [listItem('mu-sss')]
+        },
+      }),
+    )
+    expect(requested).toEqual(['mua-he'])
+    expect(catalog.products.map((product) => product.productSlug)).toEqual(['mu-sss'])
+  })
+
   it('turns every product color into one designer product with its design image and zones', async () => {
-    const catalog = await loadDesignerCatalog(undefined, source())
+    const catalog = await loadDesignerCatalog(cart, undefined, source())
 
     expect(catalog.products.map((product) => product.id)).toEqual([
       'color-white',
@@ -146,21 +170,22 @@ describe('loadDesignerCatalog', () => {
     expect(catalog.products[1]!.embroideryZones).toEqual([])
   })
 
-  it('keys selection limits by API category id, so the limit applies to that category only', async () => {
-    const catalog = await loadDesignerCatalog(undefined, source())
-    expect(catalog.rules).toEqual({ maxItems: 10, categoryLimits: { 'cat-shirt': 3 } })
+  it('keys picture limits by API category id, so the limit applies to that category only', async () => {
+    const catalog = await loadDesignerCatalog(cart, undefined, source())
+    expect(catalog.rules).toEqual({
+      maxItems: 10,
+      maxOrderItems: 50,
+      categoryLimits: { 'cat-shirt': 3 },
+    })
 
     const selectionCatalog = { products: catalog.products, rules: catalog.rules }
-    const threeShirts = ['a', 'b', 'c'].map((id) => ({ instanceId: id, productId: 'color-pink' }))
-    expect(checkCanAdd(threeShirts, 'color-white', selectionCatalog)).toMatchObject({
-      ok: false,
-      reason: { code: 'category-limit', categoryId: 'cat-shirt', limit: 3 },
-    })
-    expect(checkCanAdd(threeShirts, 'color-hat', selectionCatalog).ok).toBe(true)
+    const items = ['a', 'b', 'c', 'd'].map((id) => ({ instanceId: id, productId: 'color-pink' }))
+    items.push({ instanceId: 'e', productId: 'color-hat' })
+    expect([...pictureIds(items, selectionCatalog)]).toEqual(['a', 'b', 'c', 'e'])
   })
 
   it('maps backgrounds, the default background, presets and category names', async () => {
-    const catalog = await loadDesignerCatalog(undefined, source())
+    const catalog = await loadDesignerCatalog(cart, undefined, source())
     expect(catalog.backgrounds).toEqual([
       {
         id: 'bg-1',
@@ -186,6 +211,7 @@ describe('loadDesignerCatalog', () => {
 
   it('skips a product hidden between the list and its designer request', async () => {
     const catalog = await loadDesignerCatalog(
+      cart,
       undefined,
       source({
         productDesigner: async (slug) => {
@@ -201,6 +227,7 @@ describe('loadDesignerCatalog', () => {
     const outage = new ApiError('http', 'Unavailable', { status: 503 })
     await expect(
       loadDesignerCatalog(
+        cart,
         undefined,
         source({
           productDesigner: async () => {

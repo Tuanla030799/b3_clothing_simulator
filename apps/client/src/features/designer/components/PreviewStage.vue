@@ -41,7 +41,7 @@ const background = computed(
     <Flex vertical gap="middle">
       <Flex align="center" justify="space-between" wrap gap="small">
         <Typography id="preview-heading" as="h2" variant="subheading">Xem trước</Typography>
-        <SelectionSummary :selected-category-ids="selection.selectedCategoryIds.value" />
+        <SelectionSummary />
       </Flex>
 
       <Flex wrap gap="small" role="group" aria-label="Chế độ xem">
@@ -120,7 +120,7 @@ const background = computed(
       </div>
 
       <Typography v-if="isSet && !isEmpty" variant="caption" data-testid="preview-caption">
-        Cả bộ {{ selection.entries.value.length }} món · Nền:
+        Ảnh cả bộ {{ selection.pictureEntries.value.length }} món · Nền:
         {{ composition.backgroundEntry.value?.name ?? 'nền trơn' }}
       </Typography>
       <Typography v-else-if="active" variant="caption" data-testid="preview-caption">

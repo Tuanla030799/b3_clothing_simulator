@@ -69,7 +69,7 @@ function setup(options: { stored?: GuestSession | null } = {}) {
   })
   const input = (overrides: Partial<SubmitInput> = {}): SubmitInput => ({
     customer: { name: 'A', phone: '0912345678', address: 'B', note: null },
-    items: [{ instanceId: 'item-1', product, sizeId: null }],
+    items: [{ instanceId: 'item-1', product, sizeId: null, inPreview: true }],
     designs: designs(),
     backgroundId: 'bg-1',
     uploadBlob: () => new Blob(['x']),

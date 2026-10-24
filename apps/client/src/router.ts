@@ -26,14 +26,21 @@ export const routes: RouteRecordRaw[] = [
     name: 'designer',
     // Loaded on demand: the design tool (and Konva) is not part of the home page bundle.
     component: () => import('./pages/DesignerPage.vue'),
-    // `?mau=<color id>` (from "Thiết kế với màu này") starts the set with that color.
+    // Designs the cart; `?bo-suu-tap=<slug>` designs one collection instead and `?buoc=dat-hang`
+    // opens the checkout right away (the cart's "Đặt hàng").
     props: (route) => ({
-      initialColorId: typeof route.query.mau === 'string' ? route.query.mau : undefined,
+      collectionSlug:
+        typeof route.query['bo-suu-tap'] === 'string' ? route.query['bo-suu-tap'] : undefined,
+      checkout: route.query.buoc === 'dat-hang',
     }),
     meta: { title: 'Thiết kế bộ quà', hideFooter: true },
   },
-  // The set being designed is the cart: ordering starts from the design tool.
-  { path: '/gio-hang', redirect: '/thiet-ke' },
+  {
+    path: '/gio-hang',
+    name: 'cart',
+    component: () => import('./pages/CartPage.vue'),
+    meta: { title: 'Giỏ hàng' },
+  },
   {
     path: '/don-hang/:id',
     name: 'order',

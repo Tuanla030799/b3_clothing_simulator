@@ -168,8 +168,13 @@ Code: [apps/client/src/features/designer](apps/client/src/features/designer).
 - `DesignerPage` loads the catalog (loading state, error with “Thử lại”), then mounts
   `DesignerWorkspace`, which owns the session state. Components read the catalog with
   `injectCatalog()` and `useCategoryName()`.
-- Selection rules come from the config: `maxItems` and per-category limits keyed by the API
-  **category id**, never by display name. Categories without a limit have no own limit.
+- The design tool loads only the products in scope (`DesignerScope`): the cart's products (default)
+  or one collection's (`?bo-suu-tap=<slug>`), never the whole catalog.
+- Limits come from the config. `maxOrderItems` (API: 50) caps the order/cart and is the only limit
+  that blocks adding. `maxItems` and per-category limits (keyed by the API **category id**, never
+  by display name) cap the **set picture**: `pictureIds` takes items in add order while they fit;
+  the others are designed and ordered (`inPreview: false`) but not drawn, and a notice
+  (`PictureNotice`) says so next to the download button and at checkout.
 - Each addition to the set is a separate item with its own `instanceId`.
 - There is no local catalog data any more. Catalog images, zones, scales, backgrounds and presets
   are managed through the admin API.
@@ -189,10 +194,9 @@ tests in [selection.test.ts](apps/client/src/features/designer/selection.test.ts
 
 Behaviour:
 
-- **Add** (`+` on a product): allowed while the set has fewer than `maxItems` items and the
-  product's category (if it has a limit) is below its limit. Repeats count. When both limits are
-  reached the total limit is reported first. Blocked buttons are disabled and show a short reason
-  under the product name (e.g. “Tối đa 3 món loại áo”, “Bộ đã đủ 10 món”). The add itself
+- **Add** (`+` on a product): allowed while the set has fewer than `maxOrderItems` items. Repeats
+  count. Picture limits never block adding (see above). Blocked buttons are disabled and show a
+  short reason under the product name (“Đơn đã đủ 50 món”). The add itself
   re-checks the rules, so the button state is never the only guard. A new item is appended,
   becomes active, and the current mobile tab is kept.
 - **Select**: click or keyboard on an item in “Bộ đồ đã chọn”; the active item is marked with
@@ -577,11 +581,11 @@ Code: [router.ts](apps/client/src/router.ts), [features/site](apps/client/src/fe
 
 - Routing uses `vue-router` (history mode, `base` from Vite's `BASE_URL`, set by `BASE_PATH`; see
   [Deployment](#deployment)). In development the app is served at `http://localhost:5173/`.
-- Routes: `/` home, `/thiet-ke` the design tool (loaded on demand, no site footer;
-  `?mau=<color id>` starts the set with that color), `/san-pham`, `/san-pham/:slug`,
-  `/bo-suu-tap`, `/bo-suu-tap/:slug` (see [Catalog pages](#catalog-pages-i3)), `/don-hang/:id`
-  (see [Ordering](#ordering-i4)), `/gio-hang` redirects to the design tool (the set being designed
-  is the cart), and one shared “coming soon” page for menu targets that are not built
+- Routes: `/` home, `/thiet-ke` the design tool (loaded on demand, no site footer; designs the
+  cart, `?bo-suu-tap=<slug>` designs one collection, `?buoc=dat-hang` opens the checkout),
+  `/san-pham`, `/san-pham/:slug` (“Thêm vào giỏ hàng”), `/bo-suu-tap`, `/bo-suu-tap/:slug`
+  (“Thiết kế bộ sưu tập này”; see [Catalog pages](#catalog-pages-i3)), `/gio-hang` the cart,
+  `/don-hang/:id` (see [Ordering](#ordering-i4)), and one shared “coming soon” page for menu targets that are not built
   (`/tra-cuu-don-hang`, `/lien-he`, `/ve-chung-toi`); unknown paths show a not-found page. Route `meta.title` sets the
   document title (`<page> – <default title>`).
 - Layout (`SiteLayout`): skip link, dismissible announcement bar (session only), header (logo,
@@ -649,7 +653,8 @@ failed page keeps the shown items and offers “Thử lại”).
   the URL (`?danh-muc=<category slug>&q=<text>`) so a filtered list can be shared or reloaded.
 - `/san-pham/:slug`: display photo of the chosen color, category, name, price, description, color
   choice (swatch from `hexCode` when set), the available sizes (chosen when ordering, I4) and
-  “Thiết kế với màu này”, which opens `/thiet-ke?mau=<color id>`. Unknown or hidden products show
+  “Thêm vào giỏ hàng” (the color goes to the cart; designing starts from the cart). Unknown or hidden
+  products show
   “Không tìm thấy sản phẩm”.
 - `/bo-suu-tap`: every active collection. `/bo-suu-tap/:slug`: name, description and its public
   products; unknown or inactive collections show “Không tìm thấy bộ sưu tập”.
@@ -706,9 +711,15 @@ Code: [features/checkout](apps/client/src/features/checkout) and
 [api/orders.ts](apps/client/src/api/orders.ts). Ordering is a **contact request**: no payment; the
 shop quotes the embroidery fee and confirms by phone.
 
+- **Cart** ([features/cart](apps/client/src/features/cart)): product colors kept in localStorage
+  (ids only; names, images and prices from the API), shared by the tabs, at most `maxOrderItems`.
+  The cart page offers “Thiết kế” (the design tool on the cart) and “Đặt hàng không thiết kế” (the
+  same checkout, opened directly). In cart mode the design tool starts from the cart items (same
+  ids) and writes every add/remove back; ordered items leave the cart. A collection design is its
+  own set: it is ordered from the design tool or added to the cart with “Thêm vào giỏ”. Designs
+  are kept in the page only (reloading or leaving loses them; drafts are not used yet).
 - “Đặt hàng” in the design tool header (step 4) replaces the design area with the checkout; the set
-  and its designs stay in the page state, “Quay lại thiết kế” returns to them unchanged. There is
-  no separate cart; reloading still loses the set.
+  and its designs stay in the page state, “Quay lại thiết kế” returns to them unchanged.
 - Checkout: the items (with “Có thêu/Không thêu” and the price from `public/products/:slug`), a
   size `Select` per item whose product has sizes (required), name, phone, address and an optional
   note, and a summary: subtotal, embroidery fee “Báo giá sau”. Fields are checked with the API's

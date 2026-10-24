@@ -58,10 +58,10 @@ Backend: repo `b3_clothing_simulator_api` (NestJS). Hợp đồng chi tiết n�
   `ProductCard` (có giá). Các khối tĩnh giữ nguyên: thanh thông báo, footer, mạng xã hội, cam kết,
   quy trình, đánh giá.
 - `/san-pham`: lọc theo danh mục, tìm theo tên, giữ trên URL (`?danh-muc=&q=`), "Xem thêm" 24 món
-  mỗi trang. `/san-pham/:slug`: màu, size (chỉ hiển thị), giá, mô tả, nút "Thiết kế với màu này"
-  → `/thiet-ke?mau=<color id>` (designer thêm sẵn màu đó vào bộ).
+  mỗi trang. `/san-pham/:slug`: màu, size (chỉ hiển thị), giá, mô tả, nút "Thêm vào giỏ hàng".
 - `/bo-suu-tap` (mọi bộ sưu tập đang bật) và `/bo-suu-tap/:slug` (mô tả + sản phẩm, "Xem thêm").
-- Giá: `Intl.NumberFormat('vi-VN', VND)` → "199.000 ₫"; hiển thị ở mọi thẻ sản phẩm.
+- Giá: `Intl.NumberFormat('vi-VN', VND, currencyDisplay: 'code')` → "199.000 VND"; hiển thị ở mọi thẻ
+  sản phẩm.
 - Trạng thái: đang tải, lỗi + thử lại, rỗng, không tìm thấy (API 404).
 
 ### I4 — Đặt hàng (xong)
@@ -82,6 +82,16 @@ Quyết định đã chốt: đặt thẳng từ trang thiết kế (không có 
   thêu", người nhận, ảnh xem trước (private, đọc bằng token). Hết phiên → hiện mã đơn đã lưu ở tab.
 - Giới hạn ảnh khách hạ từ 10 MB xuống 5 MB cho khớp `UPLOAD_MAX_BYTES` của BE.
 - Chưa làm: lưu draft qua reload, trang tra cứu đơn (BE chưa có endpoint).
+
+### I6 — Giỏ hàng và phạm vi thiết kế (xong)
+
+- Giỏ hàng lưu ở trình duyệt (localStorage, chỉ id), tối đa `maxOrderItems` (API: 50). Trang
+  `/gio-hang`: "Thiết kế" (thiết kế các món trong giỏ) và "Đặt hàng không thiết kế".
+- Trang thiết kế chỉ tải sản phẩm của giỏ, hoặc của một bộ sưu tập (`?bo-suu-tap=<slug>`, nút
+  "Thiết kế bộ sưu tập này"); không tải toàn bộ catalog. Trang chủ: "Chọn bộ sưu tập".
+- Ảnh cả bộ chỉ vẽ tối đa `maxItems` món trong giới hạn theo loại; món còn lại vẫn được thiết kế và
+  gửi với `inPreview: false`, khách thấy cảnh báo, admin thấy nhãn "Không có trong ảnh".
+- Chưa làm: lưu thiết kế khi rời trang (draft).
 
 ### I5 — App admin (xong)
 

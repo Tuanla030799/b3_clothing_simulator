@@ -115,7 +115,10 @@ export interface PublicDesignerProduct {
 
 export interface PublicDesignerConfig {
   selection: {
+    /** Most items drawn in the set picture. */
     maxItems: number
+    /** Most items in one order (the cart). */
+    maxOrderItems: number
     categoryLimits: { categoryId: string; maxItems: number }[]
   }
   text: {
@@ -172,6 +175,12 @@ export function createPublicCatalog(client: ApiClient = api) {
     /** 404 when the collection is unknown or inactive. */
     collection: (slug: string, signal?: AbortSignal) =>
       client.get<PublicCollection>(`public/collections/${encodeURIComponent(slug)}`, { signal }),
+    /** Every product of an active collection (all pages). */
+    allCollectionProducts: (slug: string, signal?: AbortSignal) =>
+      client.getAll<PublicProductListItem>(
+        `public/collections/${encodeURIComponent(slug)}/products`,
+        { signal },
+      ),
     collectionProducts: (slug: string, query: PageQuery, signal?: AbortSignal) =>
       client.get<Paged<PublicProductListItem>>(
         `public/collections/${encodeURIComponent(slug)}/products`,

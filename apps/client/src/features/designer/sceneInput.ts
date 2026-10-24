@@ -34,7 +34,8 @@ export function captureSceneInput(
   const fonts = new Map<string, boolean>()
   const images = new Map<string, DecodedImage | undefined>()
 
-  const sources = selection.entries.value.map(({ item, product, position }) => {
+  // Only the items drawn in the picture (see pictureIds); the others are designed but not drawn.
+  const sources = selection.pictureEntries.value.map(({ item, product, position }) => {
     const zones = designs.zonesOf(product)
     const itemDesigns = state[item.instanceId]
     for (const zone of zones) {

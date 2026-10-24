@@ -28,6 +28,10 @@ const feedback = useFeedback()
 const images = usePrivateImages()
 
 const order = shallowRef<Order | null>(null)
+// Items the customer designed but that did not fit the preview picture (set limits).
+const outsidePreview = computed(
+  () => order.value?.items.filter((item) => item.inPreview === false).length ?? 0,
+)
 const history = shallowRef<OrderEvent[]>([])
 const loadError = ref<string | null>(null)
 const loading = ref(false)
@@ -181,9 +185,12 @@ function eventText(event: OrderEvent): string {
                       class="size-20 shrink-0 rounded border bg-muted"
                     />
                     <Flex vertical :gap="4" class="min-w-0 flex-1">
-                      <Typography variant="body" weight="semibold">
-                        {{ index + 1 }}. {{ item.productName }}
-                      </Typography>
+                      <Flex align="center" wrap gap="small">
+                        <Typography variant="body" weight="semibold">
+                          {{ index + 1 }}. {{ item.productName }}
+                        </Typography>
+                        <Tag v-if="item.inPreview === false" color="orange">Không có trong ảnh</Tag>
+                      </Flex>
                       <Flex align="center" gap="small">
                         <span
                           v-if="item.colorHexCode"
@@ -272,6 +279,10 @@ function eventText(event: OrderEvent): string {
                 Ảnh khách tạo trên trình duyệt để tham khảo; nội dung thêu chính xác nằm ở danh sách
                 món.
                 <template v-if="order.background"> Nền: {{ order.background.name }}.</template>
+              </Typography>
+              <Typography v-if="outsidePreview > 0" weight="semibold">
+                {{ outsidePreview }}/{{ order.items.length }} món không có trong ảnh (vượt giới hạn
+                ảnh); xem thiết kế của các món này ở danh sách món.
               </Typography>
               <Image
                 v-if="order.preview"

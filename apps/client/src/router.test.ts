@@ -30,11 +30,16 @@ describe('router and site links', () => {
     })
   })
 
-  it('passes the color chosen on a product page to the design tool', () => {
-    const route = router.resolve('/thiet-ke?mau=color-1')
+  it('designs the cart by default, or one collection, and can open the checkout', () => {
+    const route = router.resolve('/thiet-ke?bo-suu-tap=mua-he')
     const props = route.matched[0]!.props.default as (r: typeof route) => object
-    expect(props(route)).toEqual({ initialColorId: 'color-1' })
-    expect(props(router.resolve('/thiet-ke'))).toEqual({ initialColorId: undefined })
+    expect(props(route)).toEqual({ collectionSlug: 'mua-he', checkout: false })
+    expect(props(router.resolve('/thiet-ke'))).toEqual({
+      collectionSlug: undefined,
+      checkout: false,
+    })
+    expect(props(router.resolve('/thiet-ke?buoc=dat-hang'))).toMatchObject({ checkout: true })
+    expect(router.resolve('/gio-hang').name).toBe('cart')
   })
 
   it('sends unknown paths to the not-found page', () => {

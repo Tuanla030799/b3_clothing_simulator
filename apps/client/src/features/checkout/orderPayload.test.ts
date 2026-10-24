@@ -46,8 +46,8 @@ describe('buildOrderItems', () => {
   it('maps instances, zones and image sources to the API design items', () => {
     const items = buildOrderItems(
       [
-        { instanceId: 'item-1', product, sizeId: 'size-1' },
-        { instanceId: 'item-2', product, sizeId: null },
+        { instanceId: 'item-1', product, sizeId: 'size-1', inPreview: true },
+        { instanceId: 'item-2', product, sizeId: null, inPreview: false },
       ],
       designs,
       (uploadId) => `file-of-${uploadId}`,
@@ -73,22 +73,25 @@ describe('buildOrderItems', () => {
             },
           },
         ],
+        inPreview: true,
       },
-      // A repeated product is its own line; without design it has no zones.
+      // A repeated product is its own line; without design it has no zones. Items outside the
+      // set picture are still sent, flagged so the shop knows they are not in the preview.
       {
         clientItemId: 'item-2',
         productId: 'product-1',
         colorId: 'color-1',
         sizeId: null,
         zones: [],
+        inPreview: false,
       },
     ])
   })
 
   it('lists each customer upload of the given items once', () => {
     const items = [
-      { instanceId: 'item-1', product, sizeId: null },
-      { instanceId: 'item-2', product, sizeId: null },
+      { instanceId: 'item-1', product, sizeId: null, inPreview: true },
+      { instanceId: 'item-2', product, sizeId: null, inPreview: true },
     ]
     expect([...uploadsOf(items, designs)]).toEqual([['upload-1', 'logo.png']])
   })

@@ -3,6 +3,7 @@ import {
   addItem,
   checkCanAdd,
   emptySelection,
+  pictureIds,
   removeItem,
   selectItem,
   type SelectionCatalog,
@@ -28,10 +29,10 @@ const shirt = product('shirt-a', 'shirt')
 const otherShirt = product('shirt-b', 'shirt')
 const hat = product('hat-a', 'hat')
 
-// Deliberately different from the real 10 / 3 so nothing can pass by hardcoding them.
+// Deliberately different from the real 10 / 3 / 50 so nothing can pass by hardcoding them.
 const catalog: SelectionCatalog = {
   products: [shirt, otherShirt, hat],
-  rules: { maxItems: 4, categoryLimits: { shirt: 2 } },
+  rules: { maxItems: 4, categoryLimits: { shirt: 2 }, maxOrderItems: 6 },
 }
 
 function sequentialIds() {
@@ -61,37 +62,26 @@ describe('adding items', () => {
     expect(state.activeInstanceId).toBe(ids(state)[1])
   })
 
-  it('blocks a category at its configured limit, counting repeats and other models', () => {
-    const state = addAll([shirt.id, otherShirt.id])
-    expect(checkCanAdd(state.items, shirt.id, catalog)).toEqual({
+  it('only blocks adding at the order limit, not at the picture limits', () => {
+    const state = addAll([shirt.id, otherShirt.id, shirt.id, hat.id, hat.id])
+    expect(state.items).toHaveLength(5)
+    expect(checkCanAdd(state.items, shirt.id, catalog).ok).toBe(true)
+    const full = addAll(Array.from({ length: 9 }, () => shirt.id))
+    expect(full.items).toHaveLength(6)
+    expect(checkCanAdd(full.items, hat.id, catalog)).toEqual({
       ok: false,
-      reason: { code: 'category-limit', categoryId: 'shirt', limit: 2 },
-    })
-    expect(checkCanAdd(state.items, hat.id, catalog).ok).toBe(true)
-  })
-
-  it('blocks every product at the total limit and reports it before a category limit', () => {
-    const state = addAll([shirt.id, shirt.id, hat.id, hat.id])
-    expect(checkCanAdd(state.items, hat.id, catalog)).toEqual({
-      ok: false,
-      reason: { code: 'max-items', limit: 4 },
-    })
-    // The shirt limit is also reached, but the total limit is reported first.
-    expect(checkCanAdd(state.items, shirt.id, catalog)).toEqual({
-      ok: false,
-      reason: { code: 'max-items', limit: 4 },
+      reason: { code: 'max-items', limit: 6 },
     })
   })
 
-  it('never exceeds the limits with consecutive adds', () => {
-    const state = addAll(Array.from({ length: 10 }, () => shirt.id))
-    expect(state.items).toHaveLength(2)
-    const mixed = addAll([hat.id, hat.id, hat.id, hat.id, hat.id, shirt.id])
-    expect(mixed.items).toHaveLength(4)
+  it('draws the first items that fit the picture limits, counting repeats', () => {
+    // Shirts are limited to 2 in the picture; a later hat still fits.
+    const state = addAll([shirt.id, otherShirt.id, shirt.id, hat.id, hat.id, hat.id])
+    expect([...pictureIds(state.items, catalog)]).toEqual(['id-1', 'id-2', 'id-4', 'id-5'])
   })
 
   it('leaves the state untouched when an add is rejected', () => {
-    const state = addAll([shirt.id, shirt.id])
+    const state = addAll(Array.from({ length: 6 }, () => shirt.id))
     const result = addItem(state, shirt.id, catalog, () => 'rejected')
     expect(result.state).toBe(state)
     expect(result.instanceId).toBeUndefined()
@@ -154,6 +144,9 @@ describe('useSelection', () => {
     expect(second.items.value).toHaveLength(0)
     expect(first.selectedCategoryIds.value).toEqual(['shirt', 'shirt'])
     expect(first.activeEntry.value?.position).toBe(2)
-    expect(first.canAdd(shirt.id).ok).toBe(false)
+    first.add(shirt.id)
+    // The third shirt is in the order but not in the picture (shirts: 2).
+    expect(first.canAdd(shirt.id).ok).toBe(true)
+    expect(first.pictureEntries.value.map((entry) => entry.position)).toEqual([1, 2])
   })
 })

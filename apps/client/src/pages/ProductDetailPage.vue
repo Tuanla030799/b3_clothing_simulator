@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { ArrowLeft, Check, CloudOff, PenLine, SearchX } from '@lucide/vue'
+import { ArrowLeft, CloudOff, SearchX, ShoppingCart } from '@lucide/vue'
 import { Button, Col, Container, EmptyState, Flex, Image, Link, Row, Typography } from '@lituta/ui'
 import { publicCatalog } from '../api/publicCatalog'
 import { useRemoteData } from '../api/useRemoteData'
+import { useCart } from '../features/cart/cart'
 import { formatPrice } from '../features/catalog/formatPrice'
 
 const props = defineProps<{ slug: string }>()
@@ -23,9 +24,28 @@ const color = computed(
   () => product.data.value?.colors.find((entry) => entry.id === colorId.value) ?? null,
 )
 
-// The designer adds the chosen color to a new set (see DesignerWorkspace).
-function design() {
-  if (color.value) void router.push({ path: '/thiet-ke', query: { mau: color.value.id } })
+// Items are designed from the cart (the design tool works on the cart).
+const cart = useCart()
+const adding = ref(false)
+const added = ref<{ ok: boolean; text: string } | null>(null)
+watch(colorId, () => (added.value = null))
+
+async function addToCart() {
+  const detail = product.data.value
+  if (!color.value || !detail) return
+  adding.value = true
+  try {
+    const result = await cart.add([
+      { productId: detail.id, productSlug: detail.slug, colorId: color.value.id },
+    ])
+    added.value = result.ok
+      ? { ok: true, text: `Đã thêm ${detail.name} – ${color.value.name} vào giỏ.` }
+      : { ok: false, text: `Giỏ hàng đã đủ ${result.limit} món.` }
+  } catch {
+    added.value = { ok: false, text: 'Chưa thêm được vào giỏ. Vui lòng thử lại.' }
+  } finally {
+    adding.value = false
+  }
 }
 </script>
 
@@ -99,23 +119,27 @@ function design() {
                   Màu: {{ color?.name }}
                 </Typography>
                 <Flex wrap gap="small" role="group" aria-labelledby="color-heading">
+                  <!-- Small round swatches; the chosen color's name is in the heading above. -->
                   <Button
                     v-for="entry in product.data.value.colors"
                     :key="entry.id"
                     size="small"
-                    :variant="entry.id === colorId ? 'primary' : 'default'"
+                    variant="text"
+                    :aria-label="entry.name"
+                    :title="entry.name"
                     :aria-pressed="entry.id === colorId"
                     @click="colorId = entry.id"
                   >
                     <template #icon>
                       <span
-                        v-if="entry.hexCode"
-                        class="size-3 rounded-full border border-border"
-                        :style="{ backgroundColor: entry.hexCode }"
+                        class="size-5 rounded-full border border-border bg-muted"
+                        :class="
+                          entry.id === colorId &&
+                          'ring-2 ring-primary ring-offset-2 ring-offset-background'
+                        "
+                        :style="entry.hexCode ? { backgroundColor: entry.hexCode } : undefined"
                       />
-                      <Check v-else-if="entry.id === colorId" />
                     </template>
-                    {{ entry.name }}
                   </Button>
                 </Flex>
               </Flex>
@@ -139,10 +163,25 @@ function design() {
               </Flex>
             </section>
 
-            <Button size="large" :disabled="!color" class="self-start" @click="design()">
-              <template #icon><PenLine /></template>
-              Thiết kế với màu này
-            </Button>
+            <Flex vertical gap="small" class="self-start">
+              <Button size="large" :disabled="!color" :loading="adding" @click="addToCart()">
+                <template #icon><ShoppingCart /></template>
+                Thêm vào giỏ hàng
+              </Button>
+              <Flex v-if="added" role="status" wrap align="center" gap="small">
+                <Typography
+                  as="span"
+                  variant="caption"
+                  :class="added.ok ? 'text-primary' : 'text-destructive'"
+                >
+                  {{ added.text }}
+                </Typography>
+                <Link v-if="added.ok" :as="RouterLink" to="/gio-hang">Xem giỏ hàng</Link>
+              </Flex>
+              <Typography variant="caption">
+                Thêm các món bạn muốn rồi bấm “Thiết kế” trong giỏ để thêu tên cho cả bộ.
+              </Typography>
+            </Flex>
           </Flex>
         </Col>
       </Row>

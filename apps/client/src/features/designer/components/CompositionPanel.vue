@@ -56,7 +56,7 @@ function designSummary(instanceId: string, zoneIds: string[]) {
             Đang chuẩn bị ảnh và chữ…
           </Typography>
           <Typography v-else-if="composition.status.value === 'ready'" variant="caption">
-            Đã sắp xếp {{ selection.entries.value.length }} món trên nền.
+            Đã sắp xếp {{ selection.pictureEntries.value.length }} món trên nền.
           </Typography>
           <div v-else class="rounded-md border border-destructive p-3">
             <Typography variant="body" weight="medium" class="text-destructive">
@@ -145,6 +145,13 @@ function designSummary(instanceId: string, zoneIds: string[]) {
             <div class="min-w-0 flex-1">
               <Typography variant="body" weight="medium">
                 Món {{ entry.position }}: {{ entry.product.name }}
+              </Typography>
+              <Typography
+                v-if="!selection.inPicture.value.has(entry.item.instanceId)"
+                variant="caption"
+                weight="semibold"
+              >
+                Không có trong ảnh
               </Typography>
               <Typography variant="caption">
                 {{

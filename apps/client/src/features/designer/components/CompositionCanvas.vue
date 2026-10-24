@@ -52,7 +52,7 @@ onMounted(() => {
 
 const items = computed(() => composition.scene.value.items)
 const label = computed(() => {
-  const names = selection.entries.value.map((e) => `món ${e.position}: ${e.product.name}`)
+  const names = selection.pictureEntries.value.map((e) => `món ${e.position}: ${e.product.name}`)
   return `Xem cả bộ trên nền: ${names.join(', ')}`
 })
 </script>

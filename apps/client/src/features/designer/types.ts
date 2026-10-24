@@ -69,10 +69,15 @@ export interface DesignPreset {
 }
 
 export interface SelectionRules {
-  /** Maximum number of selected items in one set (all categories, repeats included). */
+  /** Most items drawn in the set picture (all categories, repeats included). */
   maxItems: number
-  /** Per-category limits keyed by category id. Categories without an entry have no own limit. */
+  /**
+   * Per-category limits of the picture, keyed by category id. Categories without an entry have no
+   * own limit.
+   */
   categoryLimits: Partial<Record<CategoryId, number>>
+  /** Most items in one order (the cart); items beyond the picture limits are still designed. */
+  maxOrderItems: number
 }
 
 /** One place of a template: a rectangle (fractions of the background) for one item of a category. */

@@ -17,7 +17,7 @@ const title = computed(() => route.meta.title ?? 'Trang này')
       <template #icon><Clock /></template>
       <template #action>
         <Button variant="default" @click="router.push('/')">Về trang chủ</Button>
-        <Button @click="router.push('/thiet-ke')">Thiết kế bộ quà</Button>
+        <Button @click="router.push('/bo-suu-tap')">Chọn bộ sưu tập</Button>
       </template>
     </EmptyState>
   </Container>

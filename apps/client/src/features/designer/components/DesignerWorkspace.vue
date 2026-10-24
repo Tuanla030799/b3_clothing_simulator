@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Download, ShoppingBag } from '@lucide/vue'
-import { Button, Container, Flex, Typography } from '@lituta/ui'
+import { RouterLink } from 'vue-router'
+import { Download, ShoppingBag, ShoppingCart } from '@lucide/vue'
+import { Button, Container, Flex, Link, Typography } from '@lituta/ui'
 import { ordersApi } from '../../../api/orders'
+import { newCartItemId, useCart } from '../../cart/cart'
 import CheckoutView from '../../checkout/components/CheckoutView.vue'
 import { loadGuestSession, saveGuestSession } from '../../checkout/guestStorage'
 import { createOrderSubmitter } from '../../checkout/submitOrder'
@@ -23,16 +25,72 @@ import ProductPanel from './ProductPanel.vue'
 /*
  * The design tool for one loaded catalog. The catalog is read once at setup: DesignerPage mounts
  * this component only after loading and remounts it (new session state) if it loads again.
+ *
+ * Cart mode (default): the set starts with the cart items (same ids) and every add/remove is
+ * written back to the cart. Collection mode (`collectionName`): the set is separate from the cart;
+ * it can be ordered here or added to the cart.
  */
 const props = defineProps<{
   catalog: DesignerCatalog
-  /** Color to add to the new set and open in the editor (from a product page). */
-  initialColorId?: string
+  /** Designing one collection (its name); undefined designs the cart. */
+  collectionName?: string
+  /** Open the checkout right away. */
+  checkout?: boolean
 }>()
+
+const cart = useCart()
+const cartMode = props.collectionName === undefined
 
 provideCatalog(props.catalog)
 // The workspace owns the gift-set, design and composition state for the session.
-const selection = useSelection({ catalog: props.catalog })
+const selection = useSelection({
+  catalog: props.catalog,
+  ...(cartMode
+    ? {
+        createId: newCartItemId,
+        initialItems: cart.items.value.map((item) => ({
+          instanceId: item.id,
+          productId: item.colorId,
+        })),
+      }
+    : {}),
+})
+if (cartMode) {
+  // The set is the cart: keep it in step (cart items whose product is gone are dropped).
+  watch(
+    () => selection.entries.value,
+    (entries) =>
+      cart.replace(
+        entries.map(({ item, product }) => ({
+          id: item.instanceId,
+          productId: product.productId,
+          productSlug: product.productSlug,
+          colorId: product.id,
+        })),
+      ),
+    { immediate: true },
+  )
+}
+
+// Collection mode: put the set in the cart (designs stay in this page only).
+const cartNotice = ref('')
+async function addSetToCart() {
+  cartNotice.value = ''
+  try {
+    const result = await cart.add(
+      selection.entries.value.map(({ product }) => ({
+        productId: product.productId,
+        productSlug: product.productSlug,
+        colorId: product.id,
+      })),
+    )
+    cartNotice.value = result.ok
+      ? `Đã thêm ${selection.entries.value.length} món vào giỏ (thiết kế chỉ giữ trên trang này).`
+      : `Giỏ hàng tối đa ${result.limit} món.`
+  } catch {
+    cartNotice.value = 'Chưa thêm được vào giỏ. Vui lòng thử lại.'
+  }
+}
 provideSelection(selection)
 const designs = useDesigns(selection, { presets: props.catalog.presets })
 provideDesigns(designs)
@@ -64,10 +122,7 @@ const panelTabs = computed(() => [
  * lg+: products | preview over the gift set | personalization. Row/Col cannot place one column
  * under another while side columns span both rows, so this area layout uses CSS grid.
  */
-const activePanel = ref<PanelId>('products')
-// "Thiết kế với màu này" on a product page: that color starts the set. A color that is no longer
-// in the catalog is ignored.
-if (props.initialColorId && selection.add(props.initialColorId).ok) activePanel.value = 'design'
+const activePanel = ref<PanelId>(selection.entries.value.length ? 'design' : 'products')
 
 const mobileVisibility = (id: PanelId) => (activePanel.value === id ? '' : 'max-lg:hidden')
 
@@ -89,7 +144,7 @@ const sideVisibility = computed(() =>
  * so going back keeps everything. The submitter lives here so a retry after reopening the
  * checkout reuses the uploads and the idempotency key of the previous attempt.
  */
-const checkoutOpen = ref(false)
+const checkoutOpen = ref(Boolean(props.checkout) && selection.entries.value.length > 0)
 const submitter = createOrderSubmitter({
   api: ordersApi,
   loadSession: () => loadGuestSession(),
@@ -101,6 +156,13 @@ const canOrder = computed(() => selection.entries.value.length > 0 && !selection
 const currentStep = computed(() =>
   checkoutOpen.value ? 3 : isSet.value ? 2 : selection.activeEntry.value ? 1 : 0,
 )
+
+// The ordered cart items leave the cart (a collection set never entered it).
+function onOrdered() {
+  if (!cartMode) return
+  const ordered = new Set(selection.entries.value.map((entry) => entry.item.instanceId))
+  cart.replace(cart.items.value.filter((item) => !ordered.has(item.id)))
+}
 
 function editItem(instanceId: string) {
   composition.editItem(instanceId)
@@ -114,8 +176,17 @@ function editItem(instanceId: string) {
     <div class="border-b bg-card">
       <Container>
         <Flex align="center" justify="space-between" gap="middle" class="h-16">
-          <Typography as="h1" variant="heading" ellipsis>Thiết kế bộ quà</Typography>
+          <Typography as="h1" variant="heading" ellipsis>
+            {{ collectionName ? `Thiết kế ${collectionName}` : 'Thiết kế giỏ hàng' }}
+          </Typography>
           <Flex v-if="!checkoutOpen" align="center" gap="small">
+            <Link v-if="cartMode" :as="RouterLink" to="/gio-hang" class="max-sm:hidden">
+              Về giỏ hàng
+            </Link>
+            <Button v-else variant="default" :disabled="!canOrder" @click="addSetToCart()">
+              <template #icon><ShoppingCart /></template>
+              Thêm vào giỏ
+            </Button>
             <Button
               variant="default"
               :disabled="!exporter.canExport.value && !exporter.exporting.value"
@@ -139,8 +210,16 @@ function editItem(instanceId: string) {
       <Container>
         <Flex vertical gap="middle">
           <DesignerSteps :current="currentStep" />
+          <Typography v-if="cartNotice" role="status" variant="caption">{{
+            cartNotice
+          }}</Typography>
 
-          <CheckoutView v-if="checkoutOpen" :submitter="submitter" @back="checkoutOpen = false" />
+          <CheckoutView
+            v-if="checkoutOpen"
+            :submitter="submitter"
+            @back="checkoutOpen = false"
+            @ordered="onOrdered"
+          />
 
           <div
             v-else
@@ -159,7 +238,7 @@ function editItem(instanceId: string) {
               class="lg:col-start-1 lg:row-span-2 lg:row-start-1"
               :class="mobileVisibility('products')"
             >
-              <ProductPanel />
+              <ProductPanel :cart-mode="cartMode" />
             </div>
 
             <div

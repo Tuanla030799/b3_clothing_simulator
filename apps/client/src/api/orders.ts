@@ -49,6 +49,8 @@ export interface OrderItemInput {
   sizeId: string | null
   /** Empty for items without embroidery. */
   zones: OrderZoneInput[]
+  /** Drawn in the preview picture (only those count against the set limits). Omitted = true. */
+  inPreview?: boolean
 }
 
 export interface DesignPayload {
@@ -98,6 +100,8 @@ export interface OrderItem {
   unitPrice: number
   displayImage: OrderImage
   zones: OrderZone[]
+  /** Drawn in the order's preview picture; null when the order has no design. */
+  inPreview: boolean | null
 }
 
 export interface Order {

@@ -69,7 +69,10 @@ function setup(overrides: Partial<DesignDeps> = {}) {
   }
   const { selection, designs } = scope.run(() => {
     const selection = useSelection({
-      catalog: { products: [shirt], rules: { maxItems: 10, categoryLimits: {} } },
+      catalog: {
+        products: [shirt],
+        rules: { maxItems: 10, categoryLimits: {}, maxOrderItems: 50 },
+      },
     })
     return {
       selection,

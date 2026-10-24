@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import { Plus } from '@lucide/vue'
-import { Button, EmptyState, Flex, Image, Typography } from '@lituta/ui'
+import { Button, EmptyState, Flex, Image, Link, Typography } from '@lituta/ui'
 import { addBlockMessage } from '../addBlockMessage'
 import { injectCatalog, useCategoryName } from '../catalog'
 import type { CategoryId, Product } from '../types'
 import { injectSelection } from '../useSelection'
+
+/*
+ * Products the set can take: those of the cart (more copies or other colors of them) or of the
+ * collection being designed. Only the products in scope are loaded (see loadDesignerCatalog).
+ */
+defineProps<{ cartMode?: boolean }>()
 
 const selection = injectSelection()
 const catalog = injectCatalog()
@@ -16,10 +23,13 @@ const activeCategoryId = ref<CategoryId | null>(null)
 
 const filters = computed(() => [
   { id: null, name: 'Tất cả' },
-  ...catalog.categories.map((category) => ({
-    id: category.id as CategoryId | null,
-    name: category.name,
-  })),
+  // Only categories that have products in scope (the cart or the collection).
+  ...catalog.categories
+    .filter((category) => catalog.products.some((product) => product.categoryId === category.id))
+    .map((category) => ({
+      id: category.id as CategoryId | null,
+      name: category.name,
+    })),
 ])
 
 // Products stay listed when a limit is reached; only their add button is blocked.
@@ -32,7 +42,7 @@ const rows = computed(() =>
       const check = selection.canAdd(product.id)
       return {
         product,
-        blockedReason: check.ok ? null : addBlockMessage(check.reason, categoryName),
+        blockedReason: check.ok ? null : addBlockMessage(check.reason),
       }
     }),
 )
@@ -46,7 +56,7 @@ function add(product: Product) {
   )?.position
   announcement.value = result.ok
     ? `Đã thêm ${product.name} vào bộ, món ${position}`
-    : addBlockMessage(result.reason, categoryName)
+    : addBlockMessage(result.reason)
 }
 </script>
 
@@ -54,11 +64,17 @@ function add(product: Product) {
   <section aria-labelledby="product-panel-heading" class="rounded-xl border bg-card p-4">
     <Flex vertical gap="middle">
       <Flex align="center" justify="space-between" gap="small">
-        <Typography id="product-panel-heading" as="h2" variant="subheading">Chọn đồ</Typography>
+        <Typography id="product-panel-heading" as="h2" variant="subheading">
+          {{ cartMode ? 'Sản phẩm trong giỏ' : 'Sản phẩm của bộ sưu tập' }}
+        </Typography>
         <Typography as="span" variant="caption">
-          Tối đa {{ selection.rules.maxItems }} món
+          Tối đa {{ selection.rules.maxOrderItems }} món
         </Typography>
       </Flex>
+      <Typography v-if="cartMode" variant="caption">
+        Thêm bản khác hoặc màu khác của sản phẩm trong giỏ.
+        <Link :as="RouterLink" to="/san-pham">Thêm sản phẩm khác</Link>
+      </Typography>
 
       <Flex wrap gap="small" role="group" aria-label="Lọc theo loại">
         <Button
@@ -76,7 +92,11 @@ function add(product: Product) {
       <EmptyState
         v-if="catalog.products.length === 0"
         title="Chưa có sản phẩm"
-        description="Cửa hàng chưa mở bán sản phẩm nào. Vui lòng quay lại sau."
+        :description="
+          cartMode
+            ? 'Các sản phẩm trong giỏ đã ngừng bán.'
+            : 'Bộ sưu tập này chưa có sản phẩm đang bán.'
+        "
       />
 
       <ul v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1" aria-label="Sản phẩm">

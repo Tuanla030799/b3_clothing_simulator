@@ -317,6 +317,8 @@ export interface OrderItem {
   designImage: OrderImage | null
   displayScale: number | null
   zones: OrderZone[]
+  /** Drawn in the order's preview picture; null when the order has no design. */
+  inPreview: boolean | null
 }
 
 export interface Order {

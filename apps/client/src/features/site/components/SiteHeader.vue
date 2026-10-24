@@ -3,10 +3,12 @@ import { ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { Menu, ShoppingBag, X } from '@lucide/vue'
 import { Button, Container, Flex, Link } from '@lituta/ui'
+import { useCart } from '../../cart/cart'
 import { brandName, cartLink, navItems } from '../data/siteData'
 import type { NavLink } from '../types'
 
 const route = useRoute()
+const cart = useCart()
 const menuOpen = ref(false)
 
 // Home matches only "/", other items also match their sub-paths.
@@ -58,9 +60,16 @@ watch(
             :active="isActive(cartLink)"
             class="size-10 p-0"
           >
-            <Flex align="center" justify="center" class="size-full">
+            <Flex align="center" justify="center" class="relative size-full">
               <ShoppingBag class="size-5" aria-hidden="true" />
-              <span class="sr-only">{{ cartLink.label }}</span>
+              <span class="sr-only">{{ cartLink.label }}: {{ cart.count.value }} món</span>
+              <span
+                v-if="cart.count.value"
+                class="absolute -end-0.5 -top-0.5 min-w-4 rounded-full bg-primary px-1 text-center text-[0.625rem] leading-4 font-semibold text-primary-foreground tabular-nums"
+                aria-hidden="true"
+              >
+                {{ cart.count.value }}
+              </span>
             </Flex>
           </Link>
 

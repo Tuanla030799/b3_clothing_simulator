@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { RotateCw } from '@lucide/vue'
 import { Button, Flex, Typography } from '@lituta/ui'
 import { exportErrorMessages } from '../exportImage'
+import PictureNotice from './PictureNotice.vue'
 import { injectComposition } from '../useComposition'
 import { exportBlockMessages, injectExport } from '../useExport'
 
@@ -27,6 +28,7 @@ const retryable = computed(() => {
 
 <template>
   <Flex id="export-status" vertical :gap="4" data-testid="export-status">
+    <PictureNotice />
     <p
       v-if="exporter.error.value"
       class="text-sm font-medium text-destructive"

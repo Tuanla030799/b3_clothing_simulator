@@ -161,6 +161,9 @@ const zonesText = (zones: { name: string; text: { content: string } | null; imag
                         Màu {{ item.colorName }}
                         <template v-if="item.sizeName"> · Size {{ item.sizeName }}</template>
                       </Typography>
+                      <Typography v-if="item.inPreview === false" variant="caption">
+                        Không có trong ảnh xem trước
+                      </Typography>
                       <Typography v-if="item.zones.length" variant="caption">
                         Thêu: {{ zonesText(item.zones) }}
                       </Typography>
@@ -247,7 +250,7 @@ const zonesText = (zones: { name: string; text: { content: string } | null; imag
 
       <Flex wrap gap="small">
         <Button variant="default" @click="router.push('/')">Về trang chủ</Button>
-        <Button @click="router.push('/thiet-ke')">Thiết kế bộ mới</Button>
+        <Button @click="router.push('/bo-suu-tap')">Tiếp tục mua sắm</Button>
       </Flex>
     </Flex>
   </Container>

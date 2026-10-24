@@ -79,7 +79,7 @@ const icons: Record<string, Component> = {
           </Col>
         </Row>
 
-        <Button size="large" @click="router.push('/thiet-ke')">Bắt đầu thiết kế</Button>
+        <Button size="large" @click="router.push('/bo-suu-tap')">Chọn bộ sưu tập</Button>
       </Flex>
     </Container>
   </section>

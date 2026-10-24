@@ -89,6 +89,9 @@ async function remove(instanceId: string, index: number) {
               <Flex as="span" vertical class="min-w-0">
                 <span class="text-xs text-muted-foreground">
                   Món {{ entry.position }} · {{ categoryName(entry.product.categoryId) }}
+                  <template v-if="!selection.inPicture.value.has(entry.item.instanceId)">
+                    · ngoài ảnh
+                  </template>
                 </span>
                 <span class="text-sm font-medium">{{ entry.product.name }}</span>
                 <Flex

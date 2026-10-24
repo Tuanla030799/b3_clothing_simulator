@@ -167,7 +167,10 @@ function setup() {
   }
   const ctx = scope.run(() => {
     const selection = useSelection({
-      catalog: { products: [shirt, hat, missing], rules: { maxItems: 10, categoryLimits: {} } },
+      catalog: {
+        products: [shirt, hat, missing],
+        rules: { maxItems: 10, categoryLimits: {}, maxOrderItems: 50 },
+      },
     })
     const designs = useDesigns(selection, deps)
     const composition = useComposition(selection, designs, {

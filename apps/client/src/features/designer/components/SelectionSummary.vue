@@ -2,30 +2,38 @@
 import { computed } from 'vue'
 import { Flex } from '@lituta/ui'
 import { injectCatalog } from '../catalog'
-import type { CategoryId } from '../types'
-
-const props = defineProps<{
-  /** Category id of every selected item (repeats included). Empty until selection exists. */
-  selectedCategoryIds: readonly CategoryId[]
-}>()
+import { injectSelection } from '../useSelection'
 
 const catalog = injectCatalog()
+const selection = injectSelection()
 
-// Limits come from configuration and are matched by category id, never by display name.
-const counters = computed(() => [
-  {
-    key: 'total',
-    label: 'Tổng',
-    count: props.selectedCategoryIds.length,
-    max: catalog.rules.maxItems,
-  },
-  ...Object.entries(catalog.rules.categoryLimits).map(([categoryId, max]) => ({
-    key: categoryId,
-    label: catalog.categories.find((category) => category.id === categoryId)?.name ?? categoryId,
-    count: props.selectedCategoryIds.filter((id) => id === categoryId).length,
-    max: max ?? 0,
-  })),
-])
+/*
+ * Items in the order (limit maxOrderItems) and items in the set picture with its limits. Limits
+ * come from configuration and are matched by category id, never by display name.
+ */
+const counters = computed(() => {
+  const drawn = selection.pictureEntries.value.map((entry) => entry.product.categoryId)
+  return [
+    {
+      key: 'total',
+      label: 'Tổng',
+      count: selection.entries.value.length,
+      max: catalog.rules.maxOrderItems,
+    },
+    { key: 'picture', label: 'Trong ảnh', count: drawn.length, max: catalog.rules.maxItems },
+    // Limited categories that have items in the order.
+    ...Object.entries(catalog.rules.categoryLimits)
+      .filter(([categoryId]) =>
+        selection.entries.value.some((entry) => entry.product.categoryId === categoryId),
+      )
+      .map(([categoryId, max]) => ({
+        key: categoryId,
+        label: `${catalog.categories.find((category) => category.id === categoryId)?.name ?? categoryId} trong ảnh`,
+        count: drawn.filter((id) => id === categoryId).length,
+        max: max ?? 0,
+      })),
+  ]
+})
 </script>
 
 <template>

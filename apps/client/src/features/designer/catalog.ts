@@ -37,23 +37,32 @@ function toProduct(product: PublicDesignerProduct, color: PublicDesignerColor): 
   }
 }
 
+/** Which products the design tool offers: those of the cart, or of one collection. */
+export type DesignerScope =
+  { kind: 'products'; slugs: readonly string[] } | { kind: 'collection'; slug: string }
+
 /**
- * Loads config, categories, every public product and the designer data of each product.
- * The API has no single "all designer products" endpoint, so this makes one request per product.
+ * Loads config, categories and the designer data of the products in scope (never the whole
+ * catalog). The API has no batch designer endpoint, so this makes one request per product.
  */
 export async function loadDesignerCatalog(
+  scope: DesignerScope,
   signal?: AbortSignal,
   source: PublicCatalogApi = publicCatalog,
 ): Promise<DesignerCatalog> {
-  const [config, categories, listed] = await Promise.all([
+  const [config, categories, slugs] = await Promise.all([
     source.designerConfig(signal),
     source.categories(signal),
-    source.allProducts({}, signal),
+    scope.kind === 'products'
+      ? Promise.resolve([...new Set(scope.slugs)])
+      : source
+          .allCollectionProducts(scope.slug, signal)
+          .then((products) => products.map((product) => product.slug)),
   ])
 
   const details = await Promise.all(
-    listed.map((product) =>
-      source.productDesigner(product.slug, signal).catch((error: unknown) => {
+    slugs.map((slug) =>
+      source.productDesigner(slug, signal).catch((error: unknown) => {
         // Hidden between the list and the detail request: leave it out instead of failing.
         if (error instanceof ApiError && error.status === 404) return null
         throw error
@@ -68,6 +77,7 @@ export async function loadDesignerCatalog(
     ),
     rules: {
       maxItems: config.selection.maxItems,
+      maxOrderItems: config.selection.maxOrderItems,
       categoryLimits: Object.fromEntries(
         config.selection.categoryLimits.map((limit) => [limit.categoryId, limit.maxItems]),
       ),

@@ -18,6 +18,7 @@ import { publicCatalog, type PublicProduct } from '../../../api/publicCatalog'
 import { useRemoteData } from '../../../api/useRemoteData'
 import { formatPrice } from '../../catalog/formatPrice'
 import { useCategoryName } from '../../designer/catalog'
+import PictureNotice from '../../designer/components/PictureNotice.vue'
 import { injectComposition } from '../../designer/useComposition'
 import { injectDesigns } from '../../designer/useDesigns'
 import { injectExport } from '../../designer/useExport'
@@ -38,7 +39,7 @@ import { CheckoutError, type createOrderSubmitter, type SubmitStep } from '../su
  * back keeps everything. Sizes and prices come from the product pages of the API.
  */
 const props = defineProps<{ submitter: ReturnType<typeof createOrderSubmitter> }>()
-const emit = defineEmits<{ back: [] }>()
+const emit = defineEmits<{ back: []; ordered: [] }>()
 
 const router = useRouter()
 const selection = injectSelection()
@@ -151,6 +152,7 @@ async function submit() {
         instanceId: row.item.instanceId,
         product: row.product,
         sizeId: row.sizeOptions.length > 0 ? (sizes[row.item.instanceId] ?? null) : null,
+        inPreview: selection.inPicture.value.has(row.item.instanceId),
       })),
       designs: designs.designs.value,
       backgroundId: composition.background.value?.id ?? null,
@@ -159,6 +161,7 @@ async function submit() {
       onStep: (next) => (step.value = next),
     })
     saveLastOrder({ id: order.id, orderCode: order.orderCode })
+    emit('ordered')
     void router.push(`/don-hang/${order.id}`)
   } catch (error) {
     if (error instanceof ApiError && error.errors.length > 0) {
@@ -373,6 +376,7 @@ async function submit() {
                   <dt>Phí thêu</dt>
                   <dd class="text-right">Báo giá sau</dd>
                 </dl>
+                <PictureNotice />
                 <Typography variant="caption">
                   Đây là yêu cầu đặt hàng, chưa cần thanh toán. Cửa hàng sẽ gọi để báo phí thêu, xác
                   nhận thiết kế và tổng tiền cuối cùng.

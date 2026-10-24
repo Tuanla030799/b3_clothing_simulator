@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { ArrowLeft, CloudOff, SearchX } from '@lucide/vue'
+import { ArrowLeft, CloudOff, PenLine, SearchX } from '@lucide/vue'
 import { Button, Container, EmptyState, Flex, Link, Typography } from '@lituta/ui'
 import { publicCatalog } from '../api/publicCatalog'
 import { usePagedList } from '../api/usePagedList'
@@ -75,6 +75,15 @@ watch(
           <Typography v-if="collection.data.value.description" class="whitespace-pre-line">
             {{ collection.data.value.description }}
           </Typography>
+          <Button
+            size="large"
+            class="self-start"
+            :disabled="products.total.value === 0"
+            @click="router.push({ path: '/thiet-ke', query: { 'bo-suu-tap': slug } })"
+          >
+            <template #icon><PenLine /></template>
+            Thiết kế bộ sưu tập này
+          </Button>
         </Flex>
 
         <ProductList

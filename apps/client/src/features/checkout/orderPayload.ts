@@ -8,6 +8,8 @@ export interface CheckoutItem {
   product: Product
   /** Required by the API when the product has sizes; null when it has none. */
   sizeId: string | null
+  /** Drawn in the set picture (see pictureIds); the others are designed but not drawn. */
+  inPreview: boolean
 }
 
 /**
@@ -20,7 +22,7 @@ export function buildOrderItems(
   designs: DesignState,
   fileIdOf: (uploadId: string) => string,
 ): OrderItemInput[] {
-  return items.map(({ instanceId, product, sizeId }) => {
+  return items.map(({ instanceId, product, sizeId, inPreview }) => {
     const byZone = designs[instanceId] ?? {}
     const zones: OrderZoneInput[] = []
     for (const zone of product.embroideryZones) {
@@ -57,6 +59,7 @@ export function buildOrderItems(
       colorId: product.id,
       sizeId,
       zones,
+      inPreview,
     }
   })
 }

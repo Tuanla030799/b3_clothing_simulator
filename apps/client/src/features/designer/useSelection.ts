@@ -5,6 +5,7 @@ import {
   checkCanAdd,
   emptySelection,
   findProduct,
+  pictureIds,
   removeItem,
   selectedCategoryIds,
   selectItem,
@@ -29,12 +30,17 @@ export interface UseSelectionOptions {
   createId?: () => string
   /** Shared edit lock; a new one is created when omitted. Exposed as `selection.lock`. */
   lock?: EditLock
+  /**
+   * Items to start with (e.g. the cart), in order. Items whose product is not in the catalog are
+   * left out; the first remaining item is active.
+   */
+  initialItems?: readonly SelectedItem[]
 }
 
 /**
  * Session state of the gift set. Each call owns its own state (no module singleton), so the page
  * that calls it decides the lifetime: panels and tabs can unmount without losing the selection.
- * Nothing is persisted; a reload starts with an empty set.
+ * The selection itself persists nothing; the design tool keeps the cart in step with it.
  */
 export function useSelection(options: UseSelectionOptions) {
   const { catalog } = options
@@ -42,13 +48,24 @@ export function useSelection(options: UseSelectionOptions) {
   const createId = options.createId ?? (() => `item-${++counter}`)
 
   const lock = options.lock ?? createEditLock()
-  const state = shallowRef<SelectionState>(emptySelection)
+  const initial = (options.initialItems ?? []).filter((item) =>
+    findProduct(catalog, item.productId),
+  )
+  const state = shallowRef<SelectionState>(
+    initial.length ? { items: initial, activeInstanceId: initial[0]!.instanceId } : emptySelection,
+  )
 
   const entries = computed<SelectedEntry[]>(() =>
     state.value.items.flatMap((item, index) => {
       const product = findProduct(catalog, item.productId)
       return product ? [{ item, product, position: index + 1 }] : []
     }),
+  )
+
+  /** Instance ids drawn in the set picture (see pictureIds); the others are designed only. */
+  const inPicture = computed(() => pictureIds(state.value.items, catalog))
+  const pictureEntries = computed(() =>
+    entries.value.filter((entry) => inPicture.value.has(entry.item.instanceId)),
   )
 
   const activeEntry = computed(
@@ -63,6 +80,8 @@ export function useSelection(options: UseSelectionOptions) {
     items: computed(() => state.value.items),
     activeInstanceId: computed(() => state.value.activeInstanceId),
     entries,
+    inPicture,
+    pictureEntries,
     activeEntry,
     /** Category id per selected item, repeats included — the input of SelectionSummary. */
     selectedCategoryIds: computed(() => selectedCategoryIds(state.value.items, catalog)),
