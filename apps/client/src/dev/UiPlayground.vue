@@ -15,6 +15,7 @@ import {
   FormField,
   Image,
   Link,
+  Modal,
   Row,
   Select,
   Typography,
@@ -74,6 +75,11 @@ const sizeOptions: SelectOption[] = [
 ]
 const sizeValue = ref<SelectOptionValue | undefined>()
 const selectLoading = ref(true)
+
+// Modal
+const modalOpen = ref(false)
+const modalSize = ref<'small' | 'middle' | 'large'>('middle')
+const modalSelect = ref<SelectOptionValue>()
 
 // Dropdown
 const dropdownItems: DropdownItem[] = [
@@ -425,6 +431,44 @@ const lastAction = ref('—')
             Đã chọn: {{ lastAction }}
           </Typography>
         </Flex>
+      </section>
+
+      <!-- Modal -->
+      <section class="rounded-xl border bg-card p-4" aria-labelledby="pg-modal">
+        <Typography id="pg-modal" as="h2" variant="heading" class="mb-3">Modal</Typography>
+        <Flex wrap gap="small">
+          <Button
+            v-for="size in ['small', 'middle', 'large'] as const"
+            :key="size"
+            variant="default"
+            @click="((modalSize = size), (modalOpen = true))"
+          >
+            Mở {{ size }}
+          </Button>
+        </Flex>
+        <Modal
+          v-model:open="modalOpen"
+          :size="modalSize"
+          title="Đơn LT-7K3M9QXA"
+          description="Modal có Select bên trong: menu mở phía trên modal."
+        >
+          <Flex vertical gap="middle">
+            <Select
+              v-model="modalSelect"
+              :options="[
+                { label: 'Một', value: 1 },
+                { label: 'Hai', value: 2 },
+              ]"
+              aria-label="Chọn trong modal"
+            />
+            <Typography v-for="n in 12" :key="n"
+              >Dòng nội dung {{ n }} (thân modal cuộn).</Typography
+            >
+          </Flex>
+          <template #footer>
+            <Button variant="default" @click="modalOpen = false">Đóng</Button>
+          </template>
+        </Modal>
       </section>
 
       <!-- EmptyState -->

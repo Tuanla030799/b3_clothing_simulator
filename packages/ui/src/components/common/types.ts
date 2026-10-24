@@ -55,6 +55,8 @@ export type TypographyWeight = 'regular' | 'medium' | 'semibold' | 'bold'
 
 export type TypographyAlign = 'left' | 'center' | 'right'
 
+export type ModalSize = 'small' | 'middle' | 'large'
+
 export type DropdownTrigger = 'click' | 'hover'
 
 export type DropdownPlacement = 'bottomLeft' | 'bottomRight' | 'topLeft' | 'topRight'

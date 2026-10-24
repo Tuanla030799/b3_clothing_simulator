@@ -28,6 +28,8 @@
   --radius: 0.75rem;
   /* Stacking level of Select/Dropdown menus. Apps raise it above their own overlay layers. */
   --z-popover: 50;
+  /* Stacking level of Modal: below menus, so a Select inside a modal opens above it. */
+  --z-modal: 40;
 }
 
 @theme inline {

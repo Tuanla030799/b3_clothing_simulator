@@ -34,6 +34,7 @@ selectors or `!important`; add the smallest shared variant instead.
 | Select     | Choose **one form value**               | [Select.vue](src/components/common/Select.vue)                                     |
 | Dropdown   | Open an **action menu**                 | [Dropdown.vue](src/components/common/Dropdown.vue)                                 |
 | EmptyState | Empty / no-content message              | [EmptyState.vue](src/components/common/EmptyState.vue)                             |
+| Modal      | Modal dialog                            | [Modal.vue](src/components/common/Modal.vue)                                       |
 
 Public types (`ButtonVariant`, `SelectOption`, `DropdownItem`, `ColSize`, `RowGutter`, …) are
 exported from [types.ts](src/components/common/types.ts). `cn()` (clsx + tailwind-merge) is also
@@ -334,6 +335,31 @@ business logic or reload button.
 </EmptyState>
 ```
 
+## Modal
+
+| Prop        | Type                             | Default    |
+| ----------- | -------------------------------- | ---------- |
+| open        | `boolean` (`v-model:open`)       | `false`    |
+| title       | `string`                         | (required) |
+| description | `string`                         | —          |
+| size        | `'small' \| 'middle' \| 'large'` | `'middle'` |
+
+Slots: `default` (body, scrolls when taller than the viewport), `footer` (actions, end-aligned).
+Event: `update:open`.
+
+- Built on reka-ui Dialog: focus is trapped and returns to the opener; Escape, the close button
+  (“Đóng”) and a backdrop click close it; the page behind does not scroll. The title names the
+  dialog, the description describes it.
+- Stacks at `--z-modal` (40), below `--z-popover`, so Select/Dropdown menus inside open above it.
+- The admin app keeps Ant Modal (AGENTS.md); this is for the client.
+
+```vue
+<Modal v-model:open="open" title="Đơn LT-7K3M9QXA" size="large">
+  <p>Chi tiết…</p>
+  <template #footer><Button variant="default" @click="open = false">Đóng</Button></template>
+</Modal>
+```
+
 ## Tokens and fonts
 
 - Tokens live in [src/styles/tokens.css](src/styles/tokens.css) with shadcn-vue names:
@@ -341,6 +367,7 @@ business logic or reload button.
   `destructive` (each with `-foreground`), `border`, `input`, `ring`, `radius`. Use them through
   Tailwind utilities (`bg-primary`, `text-muted-foreground`, `border-input`, `rounded-lg`).
   No hex values in templates. Light theme only.
+- `--z-modal` (default `40`) is the stacking level of Modal, below the menus.
 - `--z-popover` (default `50`) is the stacking level of the Select and Dropdown menus. An app
   whose own overlays sit higher (Ant Modal/Drawer use 1000 in admin) raises it in its CSS.
 - `border` is decorative; `input` (#8c8176) is the form-control border with ≥ 3:1 contrast.

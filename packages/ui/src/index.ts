@@ -14,6 +14,7 @@ export { default as FormField } from './components/common/FormField.vue'
 export { default as Select } from './components/common/Select.vue'
 export { default as Dropdown } from './components/common/Dropdown.vue'
 export { default as EmptyState } from './components/common/EmptyState.vue'
+export { default as Modal } from './components/common/Modal.vue'
 
 export type * from './components/common/types'
 
