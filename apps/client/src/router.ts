@@ -13,7 +13,6 @@ declare module 'vue-router' {
 
 // Menu targets that do not exist yet share one placeholder page.
 const comingSoon = [
-  { path: '/tra-cuu-don-hang', title: 'Tra cứu đơn hàng' },
   { path: '/lien-he', title: 'Liên hệ' },
   { path: '/ve-chung-toi', title: 'Về chúng tôi' },
 ]
@@ -34,6 +33,12 @@ export const routes: RouteRecordRaw[] = [
       checkout: route.query.buoc === 'dat-hang',
     }),
     meta: { title: 'Thiết kế bộ quà', hideFooter: true },
+  },
+  {
+    path: '/tra-cuu-don-hang',
+    name: 'order-lookup',
+    component: () => import('./pages/OrderLookupPage.vue'),
+    meta: { title: 'Tra cứu đơn hàng' },
   },
   {
     path: '/gio-hang',

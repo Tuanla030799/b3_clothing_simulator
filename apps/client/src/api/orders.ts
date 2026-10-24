@@ -122,6 +122,36 @@ export interface Order {
   preview: OrderImage | null
 }
 
+/** One order of a phone number in the lookup: nothing personal, the code partly hidden. */
+export interface OrderLookupSummary {
+  maskedCode: string
+  status: OrderStatus
+  createdAt: string
+  itemCount: number
+}
+
+/** What the lookup shows with phone number + full order code (no address or private images). */
+export interface OrderLookupDetail {
+  orderCode: string
+  status: OrderStatus
+  createdAt: string
+  currency: 'VND'
+  productSubtotal: number
+  embroideryFee: number | null
+  totalAmount: number | null
+  items: {
+    productName: string
+    colorName: string
+    colorHexCode: string | null
+    sizeName: string | null
+    unitPrice: number
+    displayImage: OrderImage
+    embroidery: { zoneName: string; text: string | null; hasImage: boolean }[]
+  }[]
+  /** Oldest first, creation included. */
+  history: { status: OrderStatus; at: string }[]
+}
+
 export function createOrdersApi(client: ApiClient = api) {
   return {
     createSession: (signal?: AbortSignal) =>
@@ -142,6 +172,18 @@ export function createOrdersApi(client: ApiClient = api) {
     /** Only the session that placed the order may read it (404 otherwise, 401 once expired). */
     order: (token: string, id: string, signal?: AbortSignal) =>
       client.get<Order>(`public/orders/${encodeURIComponent(id)}`, { token, signal }),
+    /** Orders placed with a phone number (POST keeps the number out of URLs and logs). */
+    lookupOrders: (phone: string, signal?: AbortSignal) =>
+      client.post<{ orders: OrderLookupSummary[] }>('public/order-lookup', {
+        json: { phone },
+        signal,
+      }),
+    /** 404 when the phone number and order code do not belong to the same order. */
+    lookupOrder: (phone: string, orderCode: string, signal?: AbortSignal) =>
+      client.post<OrderLookupDetail>('public/order-lookup/detail', {
+        json: { phone, orderCode },
+        signal,
+      }),
     /** A private image of the order (`contentPath` is relative to the API root, `/api/v1/...`). */
     orderImage: (token: string, contentPath: string, signal?: AbortSignal) =>
       client.blob(contentPath.replace(/^\/?api\/v1\//, ''), { token, signal }),

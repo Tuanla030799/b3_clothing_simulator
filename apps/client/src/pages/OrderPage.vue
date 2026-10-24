@@ -4,10 +4,11 @@ import { useRouter } from 'vue-router'
 import { CircleCheck, CloudOff, Clock } from '@lucide/vue'
 import { Button, Col, Container, EmptyState, Flex, Image, Row, Typography } from '@lituta/ui'
 import { ApiError } from '../api/http'
-import { ordersApi, type OrderImage, type OrderStatus } from '../api/orders'
+import { ordersApi, type OrderImage } from '../api/orders'
 import { useRemoteData } from '../api/useRemoteData'
 import { formatPrice } from '../features/catalog/formatPrice'
 import { loadGuestSession, loadLastOrder } from '../features/checkout/guestStorage'
+import { formatOrderDate, orderStatusLabels } from '../features/checkout/orderStatus'
 
 /*
  * An order as the customer sees it. Only the guest session that placed it can read it (the token
@@ -32,20 +33,9 @@ const unreadable = computed(
     !order.loading.value && (order.errorStatus.value === 401 || order.errorStatus.value === 404),
 )
 
-const statusLabels: Record<OrderStatus, string> = {
-  PENDING: 'Chờ cửa hàng liên hệ',
-  CONTACTING: 'Đang liên hệ',
-  CONFIRMED: 'Đã xác nhận',
-  SHIPPING: 'Đang giao',
-  DELIVERED: 'Đã giao',
-  CANCELLED: 'Đã hủy',
-}
+const statusLabels = orderStatusLabels
 const createdAt = computed(() =>
-  order.data.value
-    ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }).format(
-        new Date(order.data.value.createdAt),
-      )
-    : '',
+  order.data.value ? formatOrderDate(order.data.value.createdAt) : '',
 )
 
 // The preview is private: it is read with the guest token and shown through an object URL.

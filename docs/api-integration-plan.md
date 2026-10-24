@@ -81,7 +81,7 @@ Quyết định đã chốt: đặt thẳng từ trang thiết kế (không có 
 - `/don-hang/:id`: mã đơn, trạng thái, món, tạm tính, phí thêu "Chờ báo giá", tổng "Sau khi báo phí
   thêu", người nhận, ảnh xem trước (private, đọc bằng token). Hết phiên → hiện mã đơn đã lưu ở tab.
 - Giới hạn ảnh khách hạ từ 10 MB xuống 5 MB cho khớp `UPLOAD_MAX_BYTES` của BE.
-- Chưa làm: lưu draft qua reload, trang tra cứu đơn (BE chưa có endpoint).
+- Chưa làm: lưu draft qua reload.
 
 ### I6 — Giỏ hàng và phạm vi thiết kế (xong)
 
@@ -91,6 +91,9 @@ Quyết định đã chốt: đặt thẳng từ trang thiết kế (không có 
   "Thiết kế bộ sưu tập này"); không tải toàn bộ catalog. Trang chủ: "Chọn bộ sưu tập".
 - Ảnh cả bộ chỉ vẽ tối đa `maxItems` món trong giới hạn theo loại; món còn lại vẫn được thiết kế và
   gửi với `inPreview: false`, khách thấy cảnh báo, admin thấy nhãn "Không có trong ảnh".
+- Tra cứu đơn (`/tra-cuu-don-hang`): số điện thoại → danh sách đơn rút gọn (mã che giữa, ngày, trạng
+  thái, số món); mã đơn đầy đủ mở modal chi tiết và lịch sử trạng thái (không có địa chỉ, ghi chú nội
+  bộ hay ảnh riêng tư). API giới hạn 10 lần/phút/IP và 20 lần/giờ/số điện thoại.
 - Chưa làm: lưu thiết kế khi rời trang (draft).
 
 ### I5 — App admin (xong)

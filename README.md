@@ -585,8 +585,10 @@ Code: [router.ts](apps/client/src/router.ts), [features/site](apps/client/src/fe
   cart, `?bo-suu-tap=<slug>` designs one collection, `?buoc=dat-hang` opens the checkout),
   `/san-pham`, `/san-pham/:slug` (“Thêm vào giỏ hàng”), `/bo-suu-tap`, `/bo-suu-tap/:slug`
   (“Thiết kế bộ sưu tập này”; see [Catalog pages](#catalog-pages-i3)), `/gio-hang` the cart,
-  `/don-hang/:id` (see [Ordering](#ordering-i4)), and one shared “coming soon” page for menu targets that are not built
-  (`/tra-cuu-don-hang`, `/lien-he`, `/ve-chung-toi`); unknown paths show a not-found page. Route `meta.title` sets the
+  `/don-hang/:id` (see [Ordering](#ordering-i4)), `/tra-cuu-don-hang` the order lookup (phone
+  number → orders with a masked code, date, status and item count; the full order code opens a
+  `Modal` with items, amounts and status history), and one shared “coming soon” page for menu targets that are not built
+  (`/lien-he`, `/ve-chung-toi`); unknown paths show a not-found page. Route `meta.title` sets the
   document title (`<page> – <default title>`).
 - Layout (`SiteLayout`): skip link, dismissible announcement bar (session only), header (logo,
   4-item menu, cart link, hamburger menu below 768 px that closes with Escape/navigation and returns
