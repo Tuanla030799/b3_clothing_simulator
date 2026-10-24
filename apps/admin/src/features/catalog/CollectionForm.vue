@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { Input, InputNumber, Switch, Textarea } from 'ant-design-vue'
+import { Input, Switch, Textarea } from 'ant-design-vue'
 import { Col, FormField, Row } from '@lituta/ui'
 import { fieldErrors } from '../../api/httpClient'
 import { collectionsApi } from '../../api/resources'
@@ -26,7 +26,6 @@ type FormState = {
   imageFileId: string | null
   isActive: boolean
   isFeatured: boolean
-  sortOrder: number | undefined
 }
 const form = reactive<FormState>(initialState())
 let slugTouched = false
@@ -40,7 +39,6 @@ function initialState(): FormState {
     imageFileId: collection?.image?.id ?? null,
     isActive: collection?.isActive ?? false,
     isFeatured: collection?.isFeatured ?? false,
-    sortOrder: collection?.sortOrder ?? 0,
   }
 }
 
@@ -79,7 +77,6 @@ async function save(): Promise<boolean> {
     imageFileId: form.imageFileId,
     isActive: form.isActive,
     isFeatured: form.isFeatured,
-    sortOrder: form.sortOrder ?? 0,
   }
   try {
     const saved = props.collection
@@ -154,20 +151,6 @@ defineExpose({ save, reset, saving, dirty })
       </Col>
       <Col :xs="24" :md="12">
         <Row :gutter="[16, 16]">
-          <Col :span="24">
-            <FormField for="collection-order" label="Thứ tự" description="Số nhỏ hiển thị trước.">
-              <template #default="{ id }">
-                <InputNumber
-                  :id="id"
-                  v-model:value="form.sortOrder"
-                  :min="0"
-                  :max="1000000"
-                  :precision="0"
-                  style="width: 100%"
-                />
-              </template>
-            </FormField>
-          </Col>
           <Col :xs="24" :sm="12">
             <FormField for="collection-active" label="Hiện cho khách">
               <template #default="{ id }">

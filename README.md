@@ -759,6 +759,14 @@ on a separate subdomain (see [Deployment](#deployment)).
   `/bo-suu-tap/moi` and `/bo-suu-tap/:id` (information and products). Leaving a page with unsaved
   changes asks first ([useLeaveGuard.ts](apps/admin/src/composables/useLeaveGuard.ts)). Short forms
   (categories, banners, backgrounds, ready-made images, order quote/status) stay in modals.
+- **Ordering** is drag and drop ([useRowReorder.ts](apps/admin/src/composables/useRowReorder.ts)
+  with SortableJS on the Ant table body, plus up/down buttons for the keyboard in
+  [ReorderHandle.vue](apps/admin/src/components/ReorderHandle.vue)) for categories, collections,
+  collection members, banners, backgrounds, ready-made images and featured products
+  (`/san-pham/noi-bat`, at most 24). The admin only sends the new neighbour
+  (`PATCH .../position { afterId }`); the API computes `sortOrder`, so no form has an order field.
+  New rows go last; the general product list is newest first. Ordering is off beyond page 1 of a
+  list (100 rows per page).
 - **Colors** are picked from the API palette (`GET /admin/color-palette`; each key once per
   product, "Nhiều màu" for prints); the name and swatch come from the API, nothing is typed.
 - **Zone editor** ([ProductDesigner.vue](apps/admin/src/features/designer/ProductDesigner.vue), on

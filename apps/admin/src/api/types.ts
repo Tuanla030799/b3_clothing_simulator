@@ -32,7 +32,6 @@ export interface CategoryInput {
   name: string
   slug: string
   isActive?: boolean
-  sortOrder?: number
 }
 
 /** A color of the fixed palette (GET /admin/color-palette); `multi` has no swatch. */
@@ -75,6 +74,8 @@ export interface ProductListItem {
   price: number
   currency: 'VND'
   isActive: boolean
+  /** Home page featured products (at most 24), ordered by drag and drop. */
+  isFeatured: boolean
   sortOrder: number
   category: { id: string; name: string; slug: string }
   colorCount: number
@@ -97,7 +98,6 @@ export interface ProductInput {
   slug: string
   description: string | null
   price: number
-  sortOrder?: number
 }
 
 /** Colors and sizes created together with a new product, in the same transaction. */
@@ -151,7 +151,6 @@ export interface DesignAssetInput {
   name: string
   imageFileId: string
   isActive?: boolean
-  sortOrder?: number
 }
 
 export interface DesignerSettings {
@@ -179,7 +178,6 @@ export interface BannerInput {
   mobileImageFileId: string | null
   linkUrl: string | null
   isActive?: boolean
-  sortOrder?: number
 }
 
 export interface Collection {
@@ -201,7 +199,6 @@ export interface CollectionInput {
   imageFileId: string | null
   isActive?: boolean
   isFeatured?: boolean
-  sortOrder?: number
 }
 
 export interface CollectionMember {

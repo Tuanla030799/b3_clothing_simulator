@@ -56,5 +56,7 @@ export function usePagedTable<T>(
     void reload()
   }
 
-  return { rows, loading, error, pagination, onChange, reload }
+  const page = computed(() => state.page)
+
+  return { rows, loading, error, pagination, onChange, reload, page }
 }

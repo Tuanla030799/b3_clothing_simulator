@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useTemplateRef } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { Plus } from '@lucide/vue'
 import { Switch, Table, type TableColumnType } from 'ant-design-vue'
@@ -6,19 +7,30 @@ import { Button, Flex, Image, Link, Typography } from '@lituta/ui'
 import { collectionsApi } from '../api/resources'
 import type { Collection } from '../api/types'
 import PageHeader from '../components/PageHeader.vue'
+import ReorderHandle from '../components/ReorderHandle.vue'
 import { useFeedback } from '../composables/useFeedback'
 import { usePagedTable } from '../composables/usePagedTable'
+import { useRowReorder } from '../composables/useRowReorder'
 
 const router = useRouter()
 const feedback = useFeedback()
-const table = usePagedTable((page, pageSize) => collectionsApi.list({ page, pageSize }))
+const table = usePagedTable((page, pageSize) => collectionsApi.list({ page, pageSize }), 100)
 void table.reload()
 
+// Drag and drop (or the up/down buttons); the API computes the order.
+const reorder = useRowReorder({
+  container: useTemplateRef<HTMLElement>('tableWrap'),
+  rows: () => table.rows.value,
+  move: collectionsApi.move,
+  reload: () => table.reload(),
+  disabled: () => table.page.value > 1,
+})
+
 const columns: TableColumnType<Collection>[] = [
+  { title: 'Thứ tự', key: 'order', width: 120 },
   { title: 'Ảnh', key: 'image', width: 90 },
   { title: 'Bộ sưu tập', key: 'name' },
   { title: 'Sản phẩm', dataIndex: 'productCount', key: 'productCount', width: 100 },
-  { title: 'Thứ tự', dataIndex: 'sortOrder', key: 'sortOrder', width: 90 },
   { title: 'Hiện', key: 'isActive', width: 90 },
   { title: 'Nổi bật', key: 'isFeatured', width: 90 },
   { title: '', key: 'actions', width: 140, align: 'right', fixed: 'right' },
@@ -67,51 +79,67 @@ function remove(collection: Collection) {
     {{ table.error.value }}
   </Typography>
 
-  <Table
-    row-key="id"
-    :columns="columns"
-    :data-source="table.rows.value"
-    :loading="table.loading.value"
-    :pagination="table.pagination.value"
-    :scroll="{ x: 720 }"
-    @change="table.onChange"
-  >
-    <template #bodyCell="{ column, record }">
-      <template v-if="column.key === 'image'">
-        <Image
-          :src="record.image?.url"
-          alt=""
-          class="h-16 w-12 rounded border bg-muted"
-          fit="cover"
-        />
+  <div ref="tableWrap">
+    <Table
+      row-key="id"
+      :columns="columns"
+      :data-source="table.rows.value"
+      :loading="table.loading.value"
+      :pagination="table.pagination.value"
+      :scroll="{ x: 720 }"
+      @change="table.onChange"
+    >
+      <template #bodyCell="{ column, record, index }">
+        <template v-if="column.key === 'order'">
+          <ReorderHandle
+            :label="record.name"
+            :first="index === 0"
+            :last="index === table.rows.value.length - 1"
+            :disabled="reorder.moving.value || table.page.value > 1"
+            @up="reorder.moveBy(index, -1)"
+            @down="reorder.moveBy(index, 1)"
+          />
+        </template>
+        <template v-else-if="column.key === 'image'">
+          <Image
+            :src="record.image?.url"
+            alt=""
+            class="h-16 w-12 rounded border bg-muted"
+            fit="cover"
+          />
+        </template>
+        <template v-else-if="column.key === 'name'">
+          <Link :as="RouterLink" :to="`/bo-suu-tap/${record.id}`">{{ record.name }}</Link>
+          <Typography variant="caption">/{{ record.slug }}</Typography>
+        </template>
+        <template v-else-if="column.key === 'isActive' || column.key === 'isFeatured'">
+          <Switch
+            :checked="record[column.key]"
+            :aria-label="`${column.key === 'isActive' ? 'Hiện' : 'Nổi bật'} ${record.name}`"
+            @change="
+              (value) =>
+                toggle(
+                  record as Collection,
+                  column.key as 'isActive' | 'isFeatured',
+                  Boolean(value),
+                )
+            "
+          />
+        </template>
+        <template v-else-if="column.key === 'actions'">
+          <Flex justify="end" gap="small">
+            <Button
+              size="small"
+              variant="default"
+              :aria-label="`Sửa ${record.name}`"
+              @click="router.push(`/bo-suu-tap/${record.id}`)"
+            >
+              Sửa
+            </Button>
+            <Button size="small" variant="text" @click="remove(record as Collection)">Xóa</Button>
+          </Flex>
+        </template>
       </template>
-      <template v-else-if="column.key === 'name'">
-        <Link :as="RouterLink" :to="`/bo-suu-tap/${record.id}`">{{ record.name }}</Link>
-        <Typography variant="caption">/{{ record.slug }}</Typography>
-      </template>
-      <template v-else-if="column.key === 'isActive' || column.key === 'isFeatured'">
-        <Switch
-          :checked="record[column.key]"
-          :aria-label="`${column.key === 'isActive' ? 'Hiện' : 'Nổi bật'} ${record.name}`"
-          @change="
-            (value) =>
-              toggle(record as Collection, column.key as 'isActive' | 'isFeatured', Boolean(value))
-          "
-        />
-      </template>
-      <template v-else-if="column.key === 'actions'">
-        <Flex justify="end" gap="small">
-          <Button
-            size="small"
-            variant="default"
-            :aria-label="`Sửa ${record.name}`"
-            @click="router.push(`/bo-suu-tap/${record.id}`)"
-          >
-            Sửa
-          </Button>
-          <Button size="small" variant="text" @click="remove(record as Collection)">Xóa</Button>
-        </Flex>
-      </template>
-    </template>
-  </Table>
+    </Table>
+  </div>
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { Plus, Search } from '@lucide/vue'
+import { Plus, Search, Star } from '@lucide/vue'
 import { Input, Switch, Table, type TableColumnType } from 'ant-design-vue'
 import { Button, Col, Flex, Link, Row, Select, Typography } from '@lituta/ui'
 import { categoriesApi, productsApi } from '../api/resources'
@@ -55,9 +55,26 @@ const columns: TableColumnType<ProductListItem>[] = [
   { title: 'Giá', key: 'price', align: 'right' },
   { title: 'Màu / size', key: 'variants', width: 110 },
   { title: 'Đang bán', key: 'status', width: 100 },
+  { title: 'Nổi bật', key: 'featured', width: 100 },
   { title: 'Cập nhật', key: 'updatedAt', width: 150 },
   { title: '', key: 'actions', width: 140, align: 'right', fixed: 'right' },
 ]
+
+// --- featured (home page, max 24; ordered on the featured products page) ---
+const featuring = ref<string | null>(null)
+async function setFeatured(item: ProductListItem, isFeatured: boolean) {
+  featuring.value = item.id
+  try {
+    await productsApi.update(item.id, { isFeatured })
+    feedback.success(isFeatured ? 'Đã thêm vào nổi bật (cuối danh sách).' : 'Đã bỏ khỏi nổi bật.')
+    void table.reload()
+  } catch (error) {
+    // 409 when 24 products are already featured.
+    feedback.error(error)
+  } finally {
+    featuring.value = null
+  }
+}
 
 // --- publishing / delete ---
 const toggling = ref<string | null>(null)
@@ -95,9 +112,13 @@ function remove(item: ProductListItem) {
 <template>
   <PageHeader
     title="Sản phẩm"
-    description="Sản phẩm mới là bản nháp; thêm màu (ảnh hiển thị + ảnh thiết kế) rồi bật bán."
+    description="Mới nhất ở trên. Sản phẩm mới là bản nháp; bật “Nổi bật” để hiện ở trang chủ (tối đa 24)."
   >
     <template #actions>
+      <Button variant="default" @click="router.push('/san-pham/noi-bat')">
+        <template #icon><Star /></template>
+        Sắp xếp nổi bật
+      </Button>
       <Button @click="router.push('/san-pham/moi')">
         <template #icon><Plus /></template>
         Thêm sản phẩm
@@ -146,7 +167,7 @@ function remove(item: ProductListItem) {
     :data-source="table.rows.value"
     :loading="table.loading.value"
     :pagination="table.pagination.value"
-    :scroll="{ x: 1040 }"
+    :scroll="{ x: 1140 }"
     @change="table.onChange"
   >
     <template #bodyCell="{ column, record }">
@@ -165,6 +186,14 @@ function remove(item: ProductListItem) {
           :loading="toggling === record.id"
           :aria-label="`Bán ${record.name}`"
           @change="(value) => setActive(record as ProductListItem, Boolean(value))"
+        />
+      </template>
+      <template v-else-if="column.key === 'featured'">
+        <Switch
+          :checked="record.isFeatured"
+          :loading="featuring === record.id"
+          :aria-label="`Nổi bật ${record.name}`"
+          @change="(value) => setFeatured(record as ProductListItem, Boolean(value))"
         />
       </template>
       <template v-else-if="column.key === 'updatedAt'">{{

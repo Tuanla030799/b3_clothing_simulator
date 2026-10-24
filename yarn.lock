@@ -534,11 +534,13 @@ __metadata:
     "@lucide/vue": ^1.52.0
     "@tailwindcss/vite": ^4.3.3
     "@types/node": ^24.0.0
+    "@types/sortablejs": 1.15.9
     "@vitejs/plugin-vue": ^6.0.9
     "@vue/test-utils": ^2.5.1
     ant-design-vue: ^4.2.6
     dayjs: ^1.11.13
     jsdom: ^29
+    sortablejs: 1.15.7
     typescript: ~6.0.3
     vite: ^8.3.3
     vitest: ^5.0.3
@@ -1000,6 +1002,13 @@ __metadata:
   dependencies:
     undici-types: ">=7.24.0 <7.24.7"
   checksum: 2d3a555fe260fa741213a4e2450336337bdebf476091a6a5996dc7edab2e3b44252c8e64ff1026f020499123d86a42120881f70417723feb6d91ed0ae94bcea5
+  languageName: node
+  linkType: hard
+
+"@types/sortablejs@npm:1.15.9":
+  version: 1.15.9
+  resolution: "@types/sortablejs@npm:1.15.9"
+  checksum: 3aa0533a8833f7f7beefa3fa83a64a557527efa4376917b70163b9b2e761a6d6dda99417cbdb864fc4c63849ec252b0b68ef956cbd1f83c92ee1e056f4d20d1f
   languageName: node
   linkType: hard
 
@@ -3315,6 +3324,13 @@ __metadata:
   version: 1.12.0
   resolution: "shell-quote@npm:1.12.0"
   checksum: bbb3b6b244069da4114c5c0d2192786ff146123e1c29c298348871a3b8219cf45bdc9540c2f948e8874e2f7309186480a7ac0097159d0958aaafec25c5074731
+  languageName: node
+  linkType: hard
+
+"sortablejs@npm:1.15.7":
+  version: 1.15.7
+  resolution: "sortablejs@npm:1.15.7"
+  checksum: dd16bd8b3e65cb47d90a529e946381d33919891dbb555cdd80816624d5973565fc56b1ee73e001f896705b8aba44859c627e2aa90cfc1de277d88b250ecd789a
   languageName: node
   linkType: hard
 

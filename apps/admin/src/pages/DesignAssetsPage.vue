@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, useTemplateRef, watch } from 'vue'
 import { Plus } from '@lucide/vue'
-import { Input, InputNumber, Modal, Switch, Table, Tag, type TableColumnType } from 'ant-design-vue'
+import { Input, Modal, Switch, Table, Tag, type TableColumnType } from 'ant-design-vue'
 import { Button, Flex, FormField, Image, Typography } from '@lituta/ui'
 import { fieldErrors } from '../api/httpClient'
 import { designAssetsApi, type DesignAssetKind } from '../api/resources'
 import type { DesignAsset } from '../api/types'
 import ImageUploadField from '../components/ImageUploadField.vue'
 import PageHeader from '../components/PageHeader.vue'
+import ReorderHandle from '../components/ReorderHandle.vue'
 import { useFeedback } from '../composables/useFeedback'
 import { usePagedTable } from '../composables/usePagedTable'
+import { useRowReorder } from '../composables/useRowReorder'
 
 /*
  * Backgrounds of the set view and ready-made images ("Hình có sẵn") share one page: same shape,
@@ -34,17 +36,26 @@ const texts = computed(() =>
       },
 )
 
-const table = usePagedTable((page, pageSize) => api.value.list({ page, pageSize }))
+const table = usePagedTable((page, pageSize) => api.value.list({ page, pageSize }), 100)
 watch(
   () => props.kind,
   () => void table.reload(true),
   { immediate: true },
 )
 
+// Drag and drop (or the up/down buttons); the API computes the order.
+const reorder = useRowReorder({
+  container: useTemplateRef<HTMLElement>('tableWrap'),
+  rows: () => table.rows.value,
+  move: (id, afterId) => api.value.move(id, afterId),
+  reload: () => table.reload(),
+  disabled: () => table.page.value > 1,
+})
+
 const columns = computed<TableColumnType<DesignAsset>[]>(() => [
+  { title: 'Thứ tự', key: 'order', width: 120 },
   { title: 'Ảnh', key: 'image', width: 120 },
   { title: 'Tên', key: 'name' },
-  { title: 'Thứ tự', dataIndex: 'sortOrder', key: 'sortOrder', width: 90 },
   { title: 'Hiện', key: 'isActive', width: 90 },
   { title: '', key: 'actions', width: 150, align: 'right' },
 ])
@@ -57,7 +68,6 @@ const form = reactive({
   name: '',
   imageFileId: null as string | null,
   isActive: false,
-  sortOrder: 0 as number | undefined,
 })
 
 function openForm(asset: DesignAsset | null) {
@@ -66,7 +76,6 @@ function openForm(asset: DesignAsset | null) {
     name: asset?.name ?? '',
     imageFileId: asset?.image.id ?? null,
     isActive: asset?.isActive ?? false,
-    sortOrder: asset?.sortOrder ?? 0,
   })
   errors.value = {}
   open.value = true
@@ -83,7 +92,6 @@ async function save() {
     name: form.name.trim(),
     imageFileId: form.imageFileId!,
     isActive: form.isActive,
-    sortOrder: form.sortOrder ?? 0,
   }
   try {
     if (editing.value) await api.value.update(editing.value.id, body)
@@ -139,44 +147,56 @@ function remove(asset: DesignAsset) {
     {{ table.error.value }}
   </Typography>
 
-  <Table
-    row-key="id"
-    :columns="columns"
-    :data-source="table.rows.value"
-    :loading="table.loading.value"
-    :pagination="table.pagination.value"
-    :scroll="{ x: 600 }"
-    @change="table.onChange"
-  >
-    <template #bodyCell="{ column, record }">
-      <template v-if="column.key === 'image'">
-        <Image
-          :src="record.image.url"
-          :alt="record.name"
-          class="h-14 w-20 rounded border bg-muted"
-        />
+  <div ref="tableWrap">
+    <Table
+      row-key="id"
+      :columns="columns"
+      :data-source="table.rows.value"
+      :loading="table.loading.value"
+      :pagination="table.pagination.value"
+      :scroll="{ x: 600 }"
+      @change="table.onChange"
+    >
+      <template #bodyCell="{ column, record, index }">
+        <template v-if="column.key === 'order'">
+          <ReorderHandle
+            :label="record.name"
+            :first="index === 0"
+            :last="index === table.rows.value.length - 1"
+            :disabled="reorder.moving.value || table.page.value > 1"
+            @up="reorder.moveBy(index, -1)"
+            @down="reorder.moveBy(index, 1)"
+          />
+        </template>
+        <template v-else-if="column.key === 'image'">
+          <Image
+            :src="record.image.url"
+            :alt="record.name"
+            class="h-14 w-20 rounded border bg-muted"
+          />
+        </template>
+        <template v-else-if="column.key === 'name'">
+          {{ record.name }}
+          <Tag v-if="record.isDefault" color="green" class="ms-2">Mặc định</Tag>
+        </template>
+        <template v-else-if="column.key === 'isActive'">
+          <Switch
+            :checked="record.isActive"
+            :aria-label="`Hiện ${record.name}`"
+            @change="(value) => toggleActive(record as DesignAsset, Boolean(value))"
+          />
+        </template>
+        <template v-else-if="column.key === 'actions'">
+          <Flex justify="end" gap="small">
+            <Button size="small" variant="default" @click="openForm(record as DesignAsset)"
+              >Sửa</Button
+            >
+            <Button size="small" variant="text" @click="remove(record as DesignAsset)">Xóa</Button>
+          </Flex>
+        </template>
       </template>
-      <template v-else-if="column.key === 'name'">
-        {{ record.name }}
-        <Tag v-if="record.isDefault" color="green" class="ms-2">Mặc định</Tag>
-      </template>
-      <template v-else-if="column.key === 'isActive'">
-        <Switch
-          :checked="record.isActive"
-          :aria-label="`Hiện ${record.name}`"
-          @change="(value) => toggleActive(record as DesignAsset, Boolean(value))"
-        />
-      </template>
-      <template v-else-if="column.key === 'actions'">
-        <Flex justify="end" gap="small">
-          <Button size="small" variant="default" @click="openForm(record as DesignAsset)"
-            >Sửa</Button
-          >
-          <Button size="small" variant="text" @click="remove(record as DesignAsset)">Xóa</Button>
-        </Flex>
-      </template>
-    </template>
-  </Table>
+    </Table>
+  </div>
 
   <Modal
     v-model:open="open"
@@ -201,24 +221,11 @@ function remove(asset: DesignAsset) {
           :error="errors.imageFileId"
           required
         />
-        <Flex gap="large" wrap>
-          <FormField for="asset-order" label="Thứ tự">
-            <template #default="{ id }">
-              <InputNumber
-                :id="id"
-                v-model:value="form.sortOrder"
-                :min="0"
-                :max="1000000"
-                :precision="0"
-              />
-            </template>
-          </FormField>
-          <FormField for="asset-active" label="Hiện cho khách">
-            <template #default="{ id }">
-              <Switch :id="id" v-model:checked="form.isActive" class="self-start" />
-            </template>
-          </FormField>
-        </Flex>
+        <FormField for="asset-active" label="Hiện cho khách">
+          <template #default="{ id }">
+            <Switch :id="id" v-model:checked="form.isActive" class="self-start" />
+          </template>
+        </FormField>
         <button type="submit" hidden />
       </Flex>
     </form>

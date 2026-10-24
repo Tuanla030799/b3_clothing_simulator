@@ -1,24 +1,19 @@
 <script setup lang="ts">
-import { ref, shallowRef, watch } from 'vue'
+import { ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { Plus, Trash2 } from '@lucide/vue'
-import {
-  InputNumber,
-  Select as AntSelect,
-  Spin,
-  Table,
-  Tag,
-  type TableColumnType,
-} from 'ant-design-vue'
+import { Select as AntSelect, Spin, Table, Tag, type TableColumnType } from 'ant-design-vue'
 import { Button, Col, EmptyState, Flex, Link, Row, Typography } from '@lituta/ui'
 import { errorMessage } from '../api/httpClient'
 import { collectionsApi, productsApi } from '../api/resources'
 import type { Collection, CollectionMember } from '../api/types'
 import FormFooter from '../components/FormFooter.vue'
 import PageHeader from '../components/PageHeader.vue'
+import ReorderHandle from '../components/ReorderHandle.vue'
 import { useFeedback } from '../composables/useFeedback'
 import { useLeaveGuard } from '../composables/useLeaveGuard'
 import { usePagedTable } from '../composables/usePagedTable'
+import { useRowReorder } from '../composables/useRowReorder'
 import CollectionForm from '../features/catalog/CollectionForm.vue'
 import { formatPrice } from '../utils/format'
 
@@ -39,7 +34,7 @@ async function load() {
 
 const members = usePagedTable(
   (page, pageSize) => collectionsApi.members(props.id, { page, pageSize }),
-  50,
+  100,
 )
 watch(
   () => props.id,
@@ -52,9 +47,15 @@ watch(
 
 const infoForm = ref<InstanceType<typeof CollectionForm> | null>(null)
 const { allowLeave } = useLeaveGuard(() => Boolean(infoForm.value?.dirty))
-const orderDrafts = ref<Record<string, number | undefined>>({})
-watch(members.rows, (rows) => {
-  orderDrafts.value = Object.fromEntries(rows.map((row) => [row.product.id, row.sortOrder]))
+
+// Drag and drop (or the up/down buttons); the API computes the order. New members go last.
+const reorder = useRowReorder({
+  container: useTemplateRef<HTMLElement>('membersWrap'),
+  rows: () => members.rows.value,
+  rowId: (member) => member.product.id,
+  move: (productId, afterId) => collectionsApi.moveMember(props.id, productId, afterId),
+  reload: () => members.reload(),
+  disabled: () => members.page.value > 1,
 })
 
 // --- add a product (searched on the server) ---
@@ -86,7 +87,7 @@ async function add() {
   if (!picked.value) return
   adding.value = true
   try {
-    await collectionsApi.addMember(props.id, picked.value, members.rows.value.length)
+    await collectionsApi.addMember(props.id, picked.value)
     picked.value = undefined
     feedback.success('Đã thêm sản phẩm.')
     void members.reload()
@@ -95,19 +96,6 @@ async function add() {
     feedback.error(error)
   } finally {
     adding.value = false
-  }
-}
-
-async function saveOrder(member: CollectionMember) {
-  try {
-    await collectionsApi.updateMember(
-      props.id,
-      member.product.id,
-      orderDrafts.value[member.product.id] ?? 0,
-    )
-    void members.reload()
-  } catch (error) {
-    feedback.error(error)
   }
 }
 
@@ -154,10 +142,10 @@ function removeCollection() {
 }
 
 const columns: TableColumnType<CollectionMember>[] = [
+  { title: 'Thứ tự', key: 'order', width: 120 },
   { title: 'Sản phẩm', key: 'product' },
   { title: 'Giá', key: 'price', width: 130 },
   { title: 'Trang khách', key: 'public', width: 130 },
-  { title: 'Thứ tự', key: 'sortOrder', width: 200 },
   { title: '', key: 'actions', width: 80, align: 'right', fixed: 'right' },
 ]
 </script>
@@ -219,59 +207,51 @@ const columns: TableColumnType<CollectionMember>[] = [
                 </Flex>
               </form>
 
-              <Table
-                row-key="createdAt"
-                :columns="columns"
-                :data-source="members.rows.value"
-                :loading="members.loading.value"
-                :pagination="members.pagination.value"
-                :scroll="{ x: 700 }"
-                @change="members.onChange"
-              >
-                <template #bodyCell="{ column, record }">
-                  <template v-if="column.key === 'product'">
-                    <Link :as="RouterLink" :to="`/san-pham/${record.product.id}`">{{
-                      record.product.name
-                    }}</Link>
-                  </template>
-                  <template v-else-if="column.key === 'price'">{{
-                    formatPrice(record.product.price)
-                  }}</template>
-                  <template v-else-if="column.key === 'public'">
-                    <Tag :color="record.product.isPublic ? 'green' : 'default'">
-                      {{ record.product.isPublic ? 'Đang hiện' : 'Không hiện' }}
-                    </Tag>
-                  </template>
-                  <template v-else-if="column.key === 'sortOrder'">
-                    <Flex gap="small" align="center">
-                      <InputNumber
-                        v-model:value="orderDrafts[record.product.id]"
-                        :min="0"
-                        :max="1000000"
-                        :precision="0"
-                        :aria-label="`Thứ tự ${record.product.name}`"
-                        class="w-24"
+              <div ref="membersWrap">
+                <Table
+                  row-key="createdAt"
+                  :columns="columns"
+                  :data-source="members.rows.value"
+                  :loading="members.loading.value"
+                  :pagination="members.pagination.value"
+                  :scroll="{ x: 700 }"
+                  @change="members.onChange"
+                >
+                  <template #bodyCell="{ column, record, index }">
+                    <template v-if="column.key === 'order'">
+                      <ReorderHandle
+                        :label="record.product.name"
+                        :first="index === 0"
+                        :last="index === members.rows.value.length - 1"
+                        :disabled="reorder.moving.value || members.page.value > 1"
+                        @up="reorder.moveBy(index, -1)"
+                        @down="reorder.moveBy(index, 1)"
                       />
+                    </template>
+                    <template v-else-if="column.key === 'product'">
+                      <Link :as="RouterLink" :to="`/san-pham/${record.product.id}`">{{
+                        record.product.name
+                      }}</Link>
+                    </template>
+                    <template v-else-if="column.key === 'price'">{{
+                      formatPrice(record.product.price)
+                    }}</template>
+                    <template v-else-if="column.key === 'public'">
+                      <Tag :color="record.product.isPublic ? 'green' : 'default'">
+                        {{ record.product.isPublic ? 'Đang hiện' : 'Không hiện' }}
+                      </Tag>
+                    </template>
+                    <template v-else-if="column.key === 'actions'">
                       <Button
                         size="small"
-                        variant="default"
-                        :disabled="orderDrafts[record.product.id] === record.sortOrder"
-                        @click="saveOrder(record as CollectionMember)"
+                        variant="text"
+                        @click="removeMember(record as CollectionMember)"
+                        >Bỏ</Button
                       >
-                        Lưu
-                      </Button>
-                    </Flex>
+                    </template>
                   </template>
-                  <template v-else-if="column.key === 'actions'">
-                    <Button
-                      size="small"
-                      variant="text"
-                      @click="removeMember(record as CollectionMember)"
-                      >Bỏ</Button
-                    >
-                  </template>
-                </template>
-              </Table>
+                </Table>
+              </div>
             </Flex>
           </section>
         </Flex>

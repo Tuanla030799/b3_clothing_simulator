@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { reactive, ref, useTemplateRef, watch } from 'vue'
 import { Plus, Search } from '@lucide/vue'
-import { Input, InputNumber, Modal, Switch, Table, type TableColumnType } from 'ant-design-vue'
+import { Input, Modal, Switch, Table, type TableColumnType } from 'ant-design-vue'
 import { Button, Col, Flex, FormField, Row, Select, Typography } from '@lituta/ui'
 import { fieldErrors } from '../api/httpClient'
 import { categoriesApi } from '../api/resources'
 import type { Category } from '../api/types'
 import PageHeader from '../components/PageHeader.vue'
+import ReorderHandle from '../components/ReorderHandle.vue'
 import { useFeedback } from '../composables/useFeedback'
 import { usePagedTable } from '../composables/usePagedTable'
+import { useRowReorder } from '../composables/useRowReorder'
 import { SLUG_PATTERN, suggestSlug } from '../utils/slug'
 
 const feedback = useFeedback()
@@ -19,24 +21,35 @@ const activeOptions = [
   { label: 'Đang ẩn', value: 'false' },
 ]
 
-const table = usePagedTable((page, pageSize) =>
-  categoriesApi.list({
-    page,
-    pageSize,
-    q: filters.q.trim() || undefined,
-    isActive: filters.active === 'all' ? undefined : filters.active === 'true',
-  }),
+const table = usePagedTable(
+  (page, pageSize) =>
+    categoriesApi.list({
+      page,
+      pageSize,
+      q: filters.q.trim() || undefined,
+      isActive: filters.active === 'all' ? undefined : filters.active === 'true',
+    }),
+  100,
 )
 void table.reload()
+
+// Drag and drop (or the up/down buttons); the API computes the order. Shown also on the client.
+const reorder = useRowReorder({
+  container: useTemplateRef<HTMLElement>('tableWrap'),
+  rows: () => table.rows.value,
+  move: categoriesApi.move,
+  reload: () => table.reload(),
+  disabled: () => table.page.value > 1,
+})
 watch(
   () => filters.active,
   () => void table.reload(true),
 )
 
 const columns: TableColumnType<Category>[] = [
+  { title: 'Thứ tự', key: 'order', width: 120 },
   { title: 'Tên', dataIndex: 'name', key: 'name' },
   { title: 'Slug', dataIndex: 'slug', key: 'slug' },
-  { title: 'Thứ tự', dataIndex: 'sortOrder', key: 'sortOrder', width: 90 },
   { title: 'Hiện', key: 'isActive', width: 90 },
   { title: '', key: 'actions', width: 150, align: 'right' },
 ]
@@ -45,7 +58,7 @@ const columns: TableColumnType<Category>[] = [
 const editing = ref<Category | null>(null)
 const open = ref(false)
 const saving = ref(false)
-const form = reactive({ name: '', slug: '', sortOrder: 0, isActive: true })
+const form = reactive({ name: '', slug: '', isActive: true })
 const errors = ref<Record<string, string>>({})
 let slugTouched = false
 
@@ -57,10 +70,9 @@ function openForm(category: Category | null) {
       ? {
           name: category.name,
           slug: category.slug,
-          sortOrder: category.sortOrder,
           isActive: category.isActive,
         }
-      : { name: '', slug: '', sortOrder: 0, isActive: true },
+      : { name: '', slug: '', isActive: true },
   )
   slugTouched = Boolean(category)
   errors.value = {}
@@ -89,7 +101,6 @@ async function save() {
     const body = {
       name: form.name.trim(),
       slug: form.slug,
-      sortOrder: form.sortOrder,
       isActive: form.isActive,
     }
     if (editing.value) await categoriesApi.update(editing.value.id, body)
@@ -171,31 +182,45 @@ function remove(category: Category) {
     {{ table.error.value }}
   </Typography>
 
-  <Table
-    row-key="id"
-    :columns="columns"
-    :data-source="table.rows.value"
-    :loading="table.loading.value"
-    :pagination="table.pagination.value"
-    :scroll="{ x: 640 }"
-    @change="table.onChange"
-  >
-    <template #bodyCell="{ column, record }">
-      <template v-if="column.key === 'isActive'">
-        <Switch
-          :checked="record.isActive"
-          :aria-label="`Hiện danh mục ${record.name}`"
-          @change="(value) => toggleActive(record as Category, Boolean(value))"
-        />
+  <div ref="tableWrap">
+    <Table
+      row-key="id"
+      :columns="columns"
+      :data-source="table.rows.value"
+      :loading="table.loading.value"
+      :pagination="table.pagination.value"
+      :scroll="{ x: 640 }"
+      @change="table.onChange"
+    >
+      <template #bodyCell="{ column, record, index }">
+        <template v-if="column.key === 'order'">
+          <ReorderHandle
+            :label="record.name"
+            :first="index === 0"
+            :last="index === table.rows.value.length - 1"
+            :disabled="reorder.moving.value || table.page.value > 1"
+            @up="reorder.moveBy(index, -1)"
+            @down="reorder.moveBy(index, 1)"
+          />
+        </template>
+        <template v-else-if="column.key === 'isActive'">
+          <Switch
+            :checked="record.isActive"
+            :aria-label="`Hiện danh mục ${record.name}`"
+            @change="(value) => toggleActive(record as Category, Boolean(value))"
+          />
+        </template>
+        <template v-else-if="column.key === 'actions'">
+          <Flex justify="end" gap="small">
+            <Button size="small" variant="default" @click="openForm(record as Category)"
+              >Sửa</Button
+            >
+            <Button size="small" variant="text" @click="remove(record as Category)">Xóa</Button>
+          </Flex>
+        </template>
       </template>
-      <template v-else-if="column.key === 'actions'">
-        <Flex justify="end" gap="small">
-          <Button size="small" variant="default" @click="openForm(record as Category)">Sửa</Button>
-          <Button size="small" variant="text" @click="remove(record as Category)">Xóa</Button>
-        </Flex>
-      </template>
-    </template>
-  </Table>
+    </Table>
+  </div>
 
   <Modal
     v-model:open="open"
@@ -228,24 +253,15 @@ function remove(category: Category) {
             />
           </template>
         </FormField>
-        <Flex gap="large" wrap>
-          <FormField for="category-order" label="Thứ tự" :error="errors.sortOrder">
-            <template #default="{ id }">
-              <InputNumber
-                :id="id"
-                v-model:value="form.sortOrder"
-                :min="0"
-                :max="1000000"
-                :precision="0"
-              />
-            </template>
-          </FormField>
-          <FormField for="category-active" label="Hiện trên trang khách">
-            <template #default="{ id }">
-              <Switch :id="id" v-model:checked="form.isActive" class="self-start" />
-            </template>
-          </FormField>
-        </Flex>
+        <FormField
+          for="category-active"
+          label="Hiện trên trang khách"
+          description="Danh mục mới nằm cuối danh sách; kéo thả trong bảng để đổi thứ tự."
+        >
+          <template #default="{ id }">
+            <Switch :id="id" v-model:checked="form.isActive" class="self-start" />
+          </template>
+        </FormField>
         <button type="submit" hidden />
       </Flex>
     </form>

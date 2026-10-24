@@ -1,34 +1,37 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, useTemplateRef } from 'vue'
 import { Plus } from '@lucide/vue'
-import {
-  Input,
-  InputNumber,
-  Modal,
-  Switch,
-  Table,
-  Textarea,
-  type TableColumnType,
-} from 'ant-design-vue'
+import { Input, Modal, Switch, Table, Textarea, type TableColumnType } from 'ant-design-vue'
 import { Button, Flex, FormField, Image, Typography } from '@lituta/ui'
 import { fieldErrors } from '../api/httpClient'
 import { bannersApi } from '../api/resources'
 import type { Banner } from '../api/types'
 import ImageUploadField from '../components/ImageUploadField.vue'
 import PageHeader from '../components/PageHeader.vue'
+import ReorderHandle from '../components/ReorderHandle.vue'
 import { useFeedback } from '../composables/useFeedback'
 import { usePagedTable } from '../composables/usePagedTable'
+import { useRowReorder } from '../composables/useRowReorder'
 import { linkUrlProblem } from '../utils/linkUrl'
 
 const feedback = useFeedback()
-const table = usePagedTable((page, pageSize) => bannersApi.list({ page, pageSize }))
+const table = usePagedTable((page, pageSize) => bannersApi.list({ page, pageSize }), 100)
 void table.reload()
 
+// Drag and drop (or the up/down buttons); the API computes the order.
+const reorder = useRowReorder({
+  container: useTemplateRef<HTMLElement>('tableWrap'),
+  rows: () => table.rows.value,
+  move: bannersApi.move,
+  reload: () => table.reload(),
+  disabled: () => table.page.value > 1,
+})
+
 const columns: TableColumnType<Banner>[] = [
+  { title: 'Thứ tự', key: 'order', width: 120 },
   { title: 'Ảnh', key: 'image', width: 150 },
   { title: 'Tiêu đề', key: 'title' },
   { title: 'Liên kết', key: 'linkUrl' },
-  { title: 'Thứ tự', dataIndex: 'sortOrder', key: 'sortOrder', width: 90 },
   { title: 'Hiện', key: 'isActive', width: 90 },
   { title: '', key: 'actions', width: 150, align: 'right' },
 ]
@@ -44,7 +47,6 @@ const form = reactive({
   desktopImageFileId: null as string | null,
   mobileImageFileId: null as string | null,
   isActive: false,
-  sortOrder: 0 as number | undefined,
 })
 
 function openForm(banner: Banner | null) {
@@ -56,7 +58,6 @@ function openForm(banner: Banner | null) {
     desktopImageFileId: banner?.desktopImage.id ?? null,
     mobileImageFileId: banner?.mobileImage?.id ?? null,
     isActive: banner?.isActive ?? false,
-    sortOrder: banner?.sortOrder ?? 0,
   })
   errors.value = {}
   open.value = true
@@ -78,7 +79,6 @@ async function save() {
     desktopImageFileId: form.desktopImageFileId!,
     mobileImageFileId: form.mobileImageFileId,
     isActive: form.isActive,
-    sortOrder: form.sortOrder ?? 0,
   }
   try {
     if (editing.value) await bannersApi.update(editing.value.id, body)
@@ -137,48 +137,60 @@ function remove(banner: Banner) {
     {{ table.error.value }}
   </Typography>
 
-  <Table
-    row-key="id"
-    :columns="columns"
-    :data-source="table.rows.value"
-    :loading="table.loading.value"
-    :pagination="table.pagination.value"
-    :scroll="{ x: 760 }"
-    @change="table.onChange"
-  >
-    <template #bodyCell="{ column, record }">
-      <template v-if="column.key === 'image'">
-        <Image
-          :src="record.desktopImage.url"
-          alt=""
-          class="h-14 w-28 rounded border bg-muted"
-          fit="cover"
-        />
+  <div ref="tableWrap">
+    <Table
+      row-key="id"
+      :columns="columns"
+      :data-source="table.rows.value"
+      :loading="table.loading.value"
+      :pagination="table.pagination.value"
+      :scroll="{ x: 760 }"
+      @change="table.onChange"
+    >
+      <template #bodyCell="{ column, record, index }">
+        <template v-if="column.key === 'order'">
+          <ReorderHandle
+            :label="record.title"
+            :first="index === 0"
+            :last="index === table.rows.value.length - 1"
+            :disabled="reorder.moving.value || table.page.value > 1"
+            @up="reorder.moveBy(index, -1)"
+            @down="reorder.moveBy(index, 1)"
+          />
+        </template>
+        <template v-else-if="column.key === 'image'">
+          <Image
+            :src="record.desktopImage.url"
+            alt=""
+            class="h-14 w-28 rounded border bg-muted"
+            fit="cover"
+          />
+        </template>
+        <template v-else-if="column.key === 'title'">
+          {{ record.title }}
+          <Typography v-if="record.description" variant="caption" ellipsis>{{
+            record.description
+          }}</Typography>
+        </template>
+        <template v-else-if="column.key === 'linkUrl'">
+          <Typography variant="caption">{{ record.linkUrl ?? 'Không có' }}</Typography>
+        </template>
+        <template v-else-if="column.key === 'isActive'">
+          <Switch
+            :checked="record.isActive"
+            :aria-label="`Hiện banner ${record.title}`"
+            @change="(value) => toggleActive(record as Banner, Boolean(value))"
+          />
+        </template>
+        <template v-else-if="column.key === 'actions'">
+          <Flex justify="end" gap="small">
+            <Button size="small" variant="default" @click="openForm(record as Banner)">Sửa</Button>
+            <Button size="small" variant="text" @click="remove(record as Banner)">Xóa</Button>
+          </Flex>
+        </template>
       </template>
-      <template v-else-if="column.key === 'title'">
-        {{ record.title }}
-        <Typography v-if="record.description" variant="caption" ellipsis>{{
-          record.description
-        }}</Typography>
-      </template>
-      <template v-else-if="column.key === 'linkUrl'">
-        <Typography variant="caption">{{ record.linkUrl ?? 'Không có' }}</Typography>
-      </template>
-      <template v-else-if="column.key === 'isActive'">
-        <Switch
-          :checked="record.isActive"
-          :aria-label="`Hiện banner ${record.title}`"
-          @change="(value) => toggleActive(record as Banner, Boolean(value))"
-        />
-      </template>
-      <template v-else-if="column.key === 'actions'">
-        <Flex justify="end" gap="small">
-          <Button size="small" variant="default" @click="openForm(record as Banner)">Sửa</Button>
-          <Button size="small" variant="text" @click="remove(record as Banner)">Xóa</Button>
-        </Flex>
-      </template>
-    </template>
-  </Table>
+    </Table>
+  </div>
 
   <Modal
     v-model:open="open"
@@ -234,24 +246,11 @@ function remove(banner: Banner) {
           :error="errors.mobileImageFileId"
           clearable
         />
-        <Flex gap="large" wrap>
-          <FormField for="banner-order" label="Thứ tự">
-            <template #default="{ id }">
-              <InputNumber
-                :id="id"
-                v-model:value="form.sortOrder"
-                :min="0"
-                :max="1000000"
-                :precision="0"
-              />
-            </template>
-          </FormField>
-          <FormField for="banner-active" label="Hiện trên trang chủ">
-            <template #default="{ id }">
-              <Switch :id="id" v-model:checked="form.isActive" class="self-start" />
-            </template>
-          </FormField>
-        </Flex>
+        <FormField for="banner-active" label="Hiện trên trang chủ">
+          <template #default="{ id }">
+            <Switch :id="id" v-model:checked="form.isActive" class="self-start" />
+          </template>
+        </FormField>
         <button type="submit" hidden />
       </Flex>
     </form>

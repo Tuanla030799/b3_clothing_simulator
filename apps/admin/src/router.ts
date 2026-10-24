@@ -43,6 +43,12 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: 'Sản phẩm' },
       },
       {
+        path: 'san-pham/noi-bat',
+        name: 'featured-products',
+        component: () => import('./pages/FeaturedProductsPage.vue'),
+        meta: { title: 'Sản phẩm nổi bật' },
+      },
+      {
         path: 'san-pham/moi',
         name: 'product-new',
         component: () => import('./pages/ProductCreatePage.vue'),

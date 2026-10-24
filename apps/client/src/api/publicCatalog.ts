@@ -133,6 +133,8 @@ export interface PublicDesignerConfig {
 export type ProductListQuery = {
   q?: string
   categorySlug?: string
+  /** Featured products only, in the order the admin set (home page). */
+  featured?: boolean
 }
 
 export type PageQuery = { page?: number; pageSize?: number }

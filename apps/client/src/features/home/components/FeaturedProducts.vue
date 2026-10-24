@@ -8,13 +8,13 @@ import ProductCard from '../../catalog/components/ProductCard.vue'
 import SectionHeading from './SectionHeading.vue'
 
 /*
- * The API has no "featured" flag for products, so this shows the first public products in the
- * order the admin set (sortOrder). The cover image is the display photo of the first color.
+ * The first public featured products in the order the admin set by drag and drop (the general
+ * product list is newest first). The cover image is the display photo of the first color.
  */
 const FEATURED_COUNT = 6
 
 const { data, error, loading, reload } = useRemoteData((signal) =>
-  publicCatalog.products({ page: 1, pageSize: FEATURED_COUNT }, signal),
+  publicCatalog.products({ page: 1, pageSize: FEATURED_COUNT, featured: true }, signal),
 )
 </script>
 

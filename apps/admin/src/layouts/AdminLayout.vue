@@ -20,6 +20,7 @@ const items: ItemType[] = [
     type: 'group',
     children: [
       { key: '/san-pham', label: 'Sản phẩm' },
+      { key: '/san-pham/noi-bat', label: 'Sản phẩm nổi bật' },
       { key: '/danh-muc', label: 'Danh mục' },
       { key: '/bo-suu-tap', label: 'Bộ sưu tập' },
       { key: '/banner', label: 'Banner trang chủ' },
@@ -39,6 +40,7 @@ const items: ItemType[] = [
 const keys = [
   '/don-hang',
   '/san-pham',
+  '/san-pham/noi-bat',
   '/danh-muc',
   '/bo-suu-tap',
   '/banner',

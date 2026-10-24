@@ -46,6 +46,9 @@ export const categoriesApi = {
   list: (query: PageQuery & { q?: string; isActive?: boolean } = {}) =>
     http.get<Paged<Category>>('admin/categories', { query }),
   all: () => http.getAll<Category>('admin/categories'),
+  /** Drag and drop: puts the row right after `afterId` (null = first); the API computes the order. */
+  move: (categoryId: string, afterId: string | null) =>
+    http.patch(`admin/categories/${id(categoryId)}/position`, { afterId }),
   create: (body: CategoryInput) => http.post<Category>('admin/categories', body),
   update: (categoryId: string, body: Partial<CategoryInput>) =>
     http.patch<Category>(`admin/categories/${id(categoryId)}`, body),
@@ -53,12 +56,23 @@ export const categoriesApi = {
 }
 
 export const productsApi = {
-  list: (query: PageQuery & { q?: string; categoryId?: string; isActive?: boolean } = {}) =>
-    http.get<Paged<ProductListItem>>('admin/products', { query }),
+  list: (
+    query: PageQuery & {
+      q?: string
+      categoryId?: string
+      isActive?: boolean
+      isFeatured?: boolean
+    } = {},
+  ) => http.get<Paged<ProductListItem>>('admin/products', { query }),
   get: (productId: string) => http.get<Product>(`admin/products/${id(productId)}`),
+  /** Featured products only (the other lists are newest first). */
+  moveFeatured: (productId: string, afterId: string | null) =>
+    http.patch(`admin/products/${id(productId)}/position`, { afterId }),
   create: (body: ProductInput & ProductCreateExtras) => http.post<Product>('admin/products', body),
-  update: (productId: string, body: Partial<ProductInput> & { isActive?: boolean }) =>
-    http.patch<Product>(`admin/products/${id(productId)}`, body),
+  update: (
+    productId: string,
+    body: Partial<ProductInput> & { isActive?: boolean; isFeatured?: boolean },
+  ) => http.patch<Product>(`admin/products/${id(productId)}`, body),
   remove: (productId: string) => http.delete(`admin/products/${id(productId)}`),
 
   palette: () => http.get<PaletteColor[]>('admin/color-palette'),
@@ -109,6 +123,9 @@ export const designAssetsApi = (kind: DesignAssetKind) => ({
   list: (query: PageQuery & { q?: string; isActive?: boolean } = {}) =>
     http.get<Paged<DesignAsset>>(`admin/${kind}`, { query }),
   all: () => http.getAll<DesignAsset>(`admin/${kind}`),
+  /** Drag and drop: puts the row right after `afterId` (null = first); the API computes the order. */
+  move: (assetId: string, afterId: string | null) =>
+    http.patch(`admin/${kind}/${id(assetId)}/position`, { afterId }),
   create: (body: DesignAssetInput) => http.post<DesignAsset>(`admin/${kind}`, body),
   update: (assetId: string, body: Partial<DesignAssetInput>) =>
     http.patch<DesignAsset>(`admin/${kind}/${id(assetId)}`, body),
@@ -122,6 +139,9 @@ export const bannersApi = {
   update: (bannerId: string, body: Partial<BannerInput>) =>
     http.patch<Banner>(`admin/banners/${id(bannerId)}`, body),
   remove: (bannerId: string) => http.delete(`admin/banners/${id(bannerId)}`),
+  /** Drag and drop: puts the row right after `afterId` (null = first); the API computes the order. */
+  move: (bannerId: string, afterId: string | null) =>
+    http.patch(`admin/banners/${id(bannerId)}/position`, { afterId }),
 }
 
 export const collectionsApi = {
@@ -132,21 +152,22 @@ export const collectionsApi = {
   update: (collectionId: string, body: Partial<CollectionInput>) =>
     http.patch<Collection>(`admin/collections/${id(collectionId)}`, body),
   remove: (collectionId: string) => http.delete(`admin/collections/${id(collectionId)}`),
+  /** Drag and drop: puts the row right after `afterId` (null = first); the API computes the order. */
+  move: (collectionId: string, afterId: string | null) =>
+    http.patch(`admin/collections/${id(collectionId)}/position`, { afterId }),
 
   members: (collectionId: string, query: PageQuery = {}) =>
     http.get<Paged<CollectionMember>>(`admin/collections/${id(collectionId)}/products`, {
       query,
     }),
-  addMember: (collectionId: string, productId: string, sortOrder?: number) =>
-    http.post<CollectionMember>(`admin/collections/${id(collectionId)}/products`, {
-      productId,
-      sortOrder,
+  /** The new member goes last. */
+  addMember: (collectionId: string, productId: string) =>
+    http.post<CollectionMember>(`admin/collections/${id(collectionId)}/products`, { productId }),
+  /** Drag and drop inside the collection (`afterId` is another member's product id). */
+  moveMember: (collectionId: string, productId: string, afterId: string | null) =>
+    http.patch(`admin/collections/${id(collectionId)}/products/${id(productId)}/position`, {
+      afterId,
     }),
-  updateMember: (collectionId: string, productId: string, sortOrder: number) =>
-    http.patch<CollectionMember>(
-      `admin/collections/${id(collectionId)}/products/${id(productId)}`,
-      { sortOrder },
-    ),
   removeMember: (collectionId: string, productId: string) =>
     http.delete(`admin/collections/${id(collectionId)}/products/${id(productId)}`),
 }
