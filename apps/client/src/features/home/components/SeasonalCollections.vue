@@ -38,14 +38,14 @@ const collections = useRemoteData((signal) =>
         </EmptyState>
 
         <template v-else-if="collections.data.value">
-          <Row as="ul" :gutter="[16, 16]" aria-label="Bộ sưu tập theo mùa">
+          <Row as="ul" :gutter="[16, 16]" justify="center" aria-label="Bộ sưu tập theo mùa">
             <Col
               v-for="collection in collections.data.value"
               :key="collection.id"
               as="li"
               :xs="12"
-              :md="8"
-              :lg="4"
+              :md="collections.data.value.length <= 4 ? 6 : 8"
+              :lg="collections.data.value.length <= 4 ? 6 : 4"
             >
               <CollectionCard :collection="collection" />
             </Col>
