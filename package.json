@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "yarn workspace @lituta/client dev",
     "dev:admin": "yarn workspace @lituta/admin dev",
+    "dev:all": "concurrently --kill-others-on-fail --names client,admin --prefix-colors cyan,magenta \"yarn dev\" \"yarn dev:admin\"",
     "build": "yarn workspace @lituta/client build && yarn workspace @lituta/admin build",
     "build:client": "yarn workspace @lituta/client build",
     "build:admin": "yarn workspace @lituta/admin build",
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "concurrently": "^10.0.6",
     "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.11.1",

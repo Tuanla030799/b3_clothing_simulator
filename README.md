@@ -23,17 +23,42 @@ One `yarn.lock` at the root; do not use another package manager.
 corepack enable      # enable the pinned Yarn version
 yarn install         # install all workspaces
 yarn dev             # client dev server (http://localhost:5173)
+yarn dev:admin       # admin dev server (http://localhost:5174)
+yarn dev:all         # both dev servers in one terminal (stops both if one fails)
 yarn typecheck       # vue-tsc for every workspace
 yarn lint            # ESLint (Vue + TypeScript)
 yarn format:check    # Prettier check (yarn format to write)
 yarn test            # Vitest in every workspace
-yarn build           # typecheck + production build of the client (apps/client/dist)
+yarn build           # typecheck + production build of client and admin
 yarn preview         # serve the production build
 yarn check           # all of the above in sequence
 ```
 
 Yarn uses `node_modules` via `.yarnrc.yml`. Commit `yarn.lock`; use
 `yarn install --immutable` for reproducible installs in CI. Local Yarn caches are ignored.
+
+Client and admin always run on separate origins (5173 and 5174 in development, separate domains in
+production) so the admin's refresh token in `localStorage` is never readable by client scripts.
+
+### Deployment
+
+Each app is a static SPA build. `BASE_PATH` (build-time environment variable, with trailing slash,
+default `/`) sets Vite's `base` for both apps.
+
+- **GitHub Pages** ([deploy.yml](.github/workflows/deploy.yml)): builds the client only with
+  `BASE_PATH=/b3_clothing_simulator/`.
+- **Cloudflare Pages:** one project per app, both with the repository root as root directory and
+  `BASE_PATH` unset (each app on its own domain, e.g. `lituta.vn` and `admin.lituta.vn`).
+
+  | Project | Build command                                                      | Output directory   |
+  | ------- | ------------------------------------------------------------------ | ------------------ |
+  | client  | `corepack enable && yarn install --immutable && yarn build:client` | `apps/client/dist` |
+  | admin   | `corepack enable && yarn install --immutable && yarn build:admin`  | `apps/admin/dist`  |
+
+  Set `VITE_API_BASE_URL` per project (it is baked in at build time, so rebuild after changing
+  it) and list both production origins in the API's `CORS_ORIGINS`. Without a `404.html`,
+  Cloudflare Pages serves `index.html` for unknown paths, so history-mode routes load directly.
+  Protecting the admin domain with Cloudflare Access is recommended.
 
 ### UI playground (development only)
 
@@ -538,8 +563,8 @@ not tested.
 Code: [router.ts](apps/client/src/router.ts), [features/site](apps/client/src/features/site),
 [pages](apps/client/src/pages). Plan and later phases: [docs/homepage-plan.md](docs/homepage-plan.md).
 
-- Routing uses `vue-router` (history mode, `base` from Vite's `BASE_URL`; in development the app is
-  served under `http://localhost:5173/b3_clothing_simulator/`).
+- Routing uses `vue-router` (history mode, `base` from Vite's `BASE_URL`, set by `BASE_PATH`; see
+  [Deployment](#deployment)). In development the app is served at `http://localhost:5173/`.
 - Routes: `/` home, `/thiet-ke` the design tool (loaded on demand, no site footer;
   `?mau=<color id>` starts the set with that color), `/san-pham`, `/san-pham/:slug`,
   `/bo-suu-tap`, `/bo-suu-tap/:slug` (see [Catalog pages](#catalog-pages-i3)), `/don-hang/:id`
@@ -697,10 +722,11 @@ shop quotes the embroidery fee and confirms by phone.
 
 ## Admin app (I5)
 
-`yarn dev:admin` → <http://localhost:5174> (the API must list `http://localhost:5174` in
-`CORS_ORIGINS`). Base URL: `VITE_API_BASE_URL` as for the client
+`yarn dev:admin` → <http://localhost:5174> (or `yarn dev:all` with the client; the API must list
+`http://localhost:5174` in `CORS_ORIGINS`). Base URL: `VITE_API_BASE_URL` as for the client
 ([apps/admin/.env.example](apps/admin/.env.example)). `yarn build:admin` builds `apps/admin/dist`;
-the GitHub Pages workflow builds the client only (`yarn build:client`). No admin deployment exists.
+the GitHub Pages workflow builds the client only. On Cloudflare the admin is its own Pages project
+on a separate subdomain (see [Deployment](#deployment)).
 
 - **UI:** `@lituta/ui` first (Button, Select, FormField, Image, Typography, Link, Row/Col, Flex,
   EmptyState); Ant Design Vue 4.2 for what it lacks: Table, Modal, Drawer, Menu, Input/InputNumber/
