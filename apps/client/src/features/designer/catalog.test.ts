@@ -30,6 +30,14 @@ const config: PublicDesignerConfig = {
   backgrounds: [{ id: 'bg-1', name: 'Nền gỗ', image: file('bg', 1024, 559) }],
   defaultBackgroundId: 'bg-1',
   presets: [{ id: 'preset-1', name: 'Gấu', image: file('bear', 512, 512) }],
+  layouts: [
+    {
+      id: 'layout-1',
+      name: 'Một áo',
+      backgroundId: 'bg-1',
+      slots: [{ categoryId: shirts.id, x: 0.1, y: 0.2, width: 0.3, height: 0.4 }],
+    },
+  ],
 }
 
 const designer: Record<string, PublicDesignerProduct> = {
@@ -163,6 +171,14 @@ describe('loadDesignerCatalog', () => {
     expect(catalog.defaultBackgroundId).toBe('bg-1')
     expect(catalog.presets.map((preset) => preset.image.src)).toEqual([
       'http://api.test/uploads/bear.png',
+    ])
+    expect(catalog.layouts).toEqual([
+      {
+        id: 'layout-1',
+        name: 'Một áo',
+        backgroundId: 'bg-1',
+        slots: [{ categoryId: 'cat-shirt', x: 0.1, y: 0.2, width: 0.3, height: 0.4 }],
+      },
     ])
     expect(categoryName(catalog, 'cat-hat')).toBe('Mũ')
     expect(categoryName(catalog, 'unknown')).toBe('')

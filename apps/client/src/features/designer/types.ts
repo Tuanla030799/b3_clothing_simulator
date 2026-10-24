@@ -75,6 +75,23 @@ export interface SelectionRules {
   categoryLimits: Partial<Record<CategoryId, number>>
 }
 
+/** One place of a template: a rectangle (fractions of the background) for one item of a category. */
+export interface TemplateSlot {
+  categoryId: CategoryId
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** Admin-arranged layout of a set on one background; used when the set matches its categories. */
+export interface SetTemplate {
+  id: string
+  name: string
+  backgroundId: string
+  slots: TemplateSlot[]
+}
+
 /** Everything the designer needs from the API, loaded once per visit of the page. */
 export interface DesignerCatalog {
   categories: Category[]
@@ -84,4 +101,6 @@ export interface DesignerCatalog {
   /** Background shown first in the set view; null lets the first background be used. */
   defaultBackgroundId: string | null
   presets: DesignPreset[]
+  /** Hand-arranged layouts; sets without a matching one are arranged automatically. */
+  layouts: SetTemplate[]
 }

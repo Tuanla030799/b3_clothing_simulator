@@ -153,6 +153,32 @@ export interface DesignAssetInput {
   isActive?: boolean
 }
 
+/** One place of a set layout: a rectangle (fractions 0-1 of the background) for one category. */
+export interface DesignLayoutSlot {
+  categoryId: string
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** Hand-arranged layout of a gift set on one background. */
+export interface DesignLayout {
+  id: string
+  name: string
+  backgroundId: string
+  isActive: boolean
+  sortOrder: number
+  slots: DesignLayoutSlot[]
+}
+
+export interface DesignLayoutInput {
+  name: string
+  backgroundId: string
+  isActive?: boolean
+  slots: DesignLayoutSlot[]
+}
+
 export interface DesignerSettings {
   maxItems: number
   defaultBackgroundId: string | null

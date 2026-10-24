@@ -128,6 +128,25 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: 'Hình có sẵn' },
       },
       {
+        path: 'thiet-ke/mau-sap-xep',
+        name: 'layouts',
+        component: () => import('./pages/DesignLayoutsPage.vue'),
+        meta: { title: 'Mẫu sắp xếp' },
+      },
+      {
+        path: 'thiet-ke/mau-sap-xep/tao-moi',
+        name: 'layout-create',
+        component: () => import('./pages/DesignLayoutEditPage.vue'),
+        meta: { title: 'Thêm mẫu sắp xếp' },
+      },
+      {
+        path: 'thiet-ke/mau-sap-xep/:id',
+        name: 'layout',
+        component: () => import('./pages/DesignLayoutEditPage.vue'),
+        props: true,
+        meta: { title: 'Sửa mẫu sắp xếp' },
+      },
+      {
         path: 'thiet-ke/cai-dat',
         name: 'designer-settings',
         component: () => import('./pages/DesignerSettingsPage.vue'),

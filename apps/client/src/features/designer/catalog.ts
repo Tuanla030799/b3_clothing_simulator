@@ -79,6 +79,12 @@ export async function loadDesignerCatalog(
     })),
     defaultBackgroundId: config.defaultBackgroundId,
     presets: config.presets.map(({ id, name, image }) => ({ id, name, image: assetImage(image) })),
+    layouts: config.layouts.map(({ id, name, backgroundId, slots }) => ({
+      id,
+      name,
+      backgroundId,
+      slots: slots.map((slot) => ({ ...slot })),
+    })),
   }
 }
 

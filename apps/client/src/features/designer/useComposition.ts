@@ -12,9 +12,10 @@ import { COMPOSITION } from './data/designOptions'
 import type { LayerKind } from './design'
 import { decodeImage as decodeImageDefault, type DecodedImage } from './imageFiles'
 import { captureSceneInput } from './sceneInput'
-import { layoutSet, type LayoutItem, type SetLayout } from './setLayout'
+import { layoutSet, type SetLayout } from './setLayout'
+import { layoutFromTemplate, matchTemplate } from './templateLayout'
 import { buildSetScene } from './setScene'
-import type { Background, Category, Product } from './types'
+import type { Background, Category, Product, SetTemplate } from './types'
 import type { Designs } from './useDesigns'
 import type { Selection } from './useSelection'
 
@@ -58,6 +59,8 @@ export interface CompositionOptions {
   defaultBackgroundId?: string | null
   /** Used to look up the layout priority of a category by its slug. */
   categories?: readonly Category[]
+  /** Hand-arranged layouts; used when one matches the shown background and the set. */
+  layouts?: readonly SetTemplate[]
   decodeImage?: (url: string) => Promise<DecodedImage>
 }
 
@@ -69,6 +72,7 @@ export function useComposition(
   const backgrounds = options.backgrounds ?? []
   const defaultBackgroundId = options.defaultBackgroundId ?? null
   const categories = options.categories ?? []
+  const templates = options.layouts ?? []
   const decodeImage = options.decodeImage ?? decodeImageDefault
 
   const mode = ref<ViewMode>('item')
@@ -119,7 +123,11 @@ export function useComposition(
 
   function aspectOf(product: Product): number {
     const state = designs.productImageState(product)
-    if (state?.status === 'ready') return state.image.width / state.image.height
+    if (state?.status === 'ready') {
+      // Arrange the visible part of the image, not its transparent frame.
+      const { image, visible } = state
+      return (image.width * visible.width) / (image.height * visible.height)
+    }
     const { width, height } = product.image
     return width && height ? width / height : COMPOSITION.placeholderAspect
   }
@@ -129,21 +137,29 @@ export function useComposition(
     return (slug && COMPOSITION.categoryPriority[slug]) || 0
   }
 
-  const layoutItems = computed<LayoutItem[]>(() =>
+  const layoutItems = computed(() =>
     selection.entries.value.map(({ item, product }) => ({
       instanceId: item.instanceId,
+      categoryId: product.categoryId,
       aspectRatio: aspectOf(product),
       displayScale: product.displayScale,
       priority: priorityOf(product.categoryId),
     })),
   )
 
+  // The admin's arrangement for this background and set, when there is one; else automatic.
+  const template = computed(() =>
+    matchTemplate(templates, background.value?.id ?? null, layoutItems.value),
+  )
+
   const layout = computed<SetLayout>(() =>
-    layoutSet(layoutItems.value, size.value, {
-      paddingRatio: COMPOSITION.paddingRatio,
-      gapRatio: COMPOSITION.gapRatio,
-      maxItemFill: COMPOSITION.maxItemFill,
-    }),
+    template.value
+      ? layoutFromTemplate(template.value, layoutItems.value, size.value)
+      : layoutSet(layoutItems.value, size.value, {
+          paddingRatio: COMPOSITION.paddingRatio,
+          gapRatio: COMPOSITION.gapRatio,
+          maxItemFill: COMPOSITION.maxItemFill,
+        }),
   )
 
   /** The whole set as drawable data; the preview canvas renders exactly this. */

@@ -61,7 +61,8 @@ export const LAYER_LIMITS = {
  *   changes limits or sizes. It is keyed by category slug (ids differ between databases); slugs
  *   are set by the admin, so entries are added once the real slugs are known. Categories without
  *   an entry have priority 0 and are ordered by size, then add order.
- * - Padding/gap are fractions of the shorter composition side.
+ * - Padding/gap are fractions of the shorter composition side. They apply to the visible part of
+ *   each product image: transparent margins are ignored by the layout.
  * - maxItemFill caps how tall the tallest item may be relative to the usable height, so a single
  *   item does not fill the whole background.
  */
@@ -70,8 +71,8 @@ export const COMPOSITION = {
   fallbackSize: { width: 1200, height: 900 },
   /** Aspect (width / height) used for a product whose image is missing (placeholder only). */
   placeholderAspect: 4 / 3,
-  paddingRatio: 0.04,
-  gapRatio: 0.025,
+  paddingRatio: 0.03,
+  gapRatio: 0.02,
   maxItemFill: 0.75,
   categoryPriority: {} as Partial<Record<string, number>>,
 }

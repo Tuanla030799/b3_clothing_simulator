@@ -33,6 +33,7 @@ const items: ItemType[] = [
     children: [
       { key: '/thiet-ke/nen', label: 'Nền xem cả bộ' },
       { key: '/thiet-ke/hinh-co-san', label: 'Hình có sẵn' },
+      { key: '/thiet-ke/mau-sap-xep', label: 'Mẫu sắp xếp' },
       { key: '/thiet-ke/cai-dat', label: 'Giới hạn bộ quà' },
     ],
   },
@@ -46,6 +47,7 @@ const keys = [
   '/banner',
   '/thiet-ke/nen',
   '/thiet-ke/hinh-co-san',
+  '/thiet-ke/mau-sap-xep',
   '/thiet-ke/cai-dat',
 ]
 const selectedKeys = computed(() => {

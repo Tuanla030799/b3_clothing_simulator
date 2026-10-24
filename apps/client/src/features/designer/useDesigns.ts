@@ -33,6 +33,7 @@ import {
   rotateLayer,
   zoneFrame,
   type LayerTransform,
+  type NormalizedZone,
   type Size,
 } from './geometry'
 import {
@@ -52,6 +53,7 @@ import {
   type TextLayout,
 } from './textLayout'
 import type { DesignPreset, EmbroideryZone, Product } from './types'
+import { measureVisibleBounds } from './visibleBounds'
 import type { Selection } from './useSelection'
 
 export interface DesignDeps {
@@ -91,7 +93,9 @@ export interface ActiveLayer {
 }
 
 type ProductImageState =
-  { status: 'loading' } | { status: 'ready'; image: DecodedImage } | { status: 'error' }
+  | { status: 'loading' }
+  | { status: 'ready'; image: DecodedImage; visible: NormalizedZone }
+  | { status: 'error' }
 
 /**
  * Personalization state of the gift set: design data per instance/zone plus runtime resources.
@@ -186,7 +190,7 @@ export function useDesigns(selection: Selection, options: DesignOptions = {}) {
               `${image.width}×${image.height}; using the decoded size.`,
           )
         }
-        productImages.set(src, { status: 'ready', image })
+        productImages.set(src, { status: 'ready', image, visible: measureVisibleBounds(image) })
         return image
       },
       () => {

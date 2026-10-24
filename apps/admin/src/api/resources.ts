@@ -13,6 +13,8 @@ import type {
   PaletteColor,
   DesignAsset,
   DesignAssetInput,
+  DesignLayout,
+  DesignLayoutInput,
   DesignerSettings,
   EmbroideryZone,
   Order,
@@ -131,6 +133,19 @@ export const designAssetsApi = (kind: DesignAssetKind) => ({
     http.patch<DesignAsset>(`admin/${kind}/${id(assetId)}`, body),
   remove: (assetId: string) => http.delete(`admin/${kind}/${id(assetId)}`),
 })
+
+export const designLayoutsApi = {
+  list: (query: PageQuery & { backgroundId?: string; isActive?: boolean } = {}) =>
+    http.get<Paged<DesignLayout>>('admin/design-layouts', { query }),
+  get: (layoutId: string) => http.get<DesignLayout>(`admin/design-layouts/${id(layoutId)}`),
+  /** Drag and drop: puts the row right after `afterId` (null = first); the API computes the order. */
+  move: (layoutId: string, afterId: string | null) =>
+    http.patch(`admin/design-layouts/${id(layoutId)}/position`, { afterId }),
+  create: (body: DesignLayoutInput) => http.post<DesignLayout>('admin/design-layouts', body),
+  update: (layoutId: string, body: Partial<DesignLayoutInput>) =>
+    http.patch<DesignLayout>(`admin/design-layouts/${id(layoutId)}`, body),
+  remove: (layoutId: string) => http.delete(`admin/design-layouts/${id(layoutId)}`),
+}
 
 export const bannersApi = {
   list: (query: PageQuery & { q?: string; isActive?: boolean } = {}) =>

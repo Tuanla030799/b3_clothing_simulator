@@ -358,10 +358,12 @@ Dimensions are read from the file header before decoding, and checked again afte
 
 ### Image limitations
 
-- Product images are transparent cut-outs, so the set view and the export composite them on the
-  background. Each item's layout box is still its **whole image rectangle** (transparent margins
-  included), so garments look smaller than their boxes; sizing from the visible (alpha) bounds
-  would be a separate decision.
+- Product images are transparent cut-outs, composited on the background in the set view and the
+  export. The layout arranges each item's **visible box** (bounding box of its non-transparent
+  pixels, alpha > 24, measured once per image by `visibleBounds.ts` on a ≤ 256 px scan), so margins
+  around a garment do not become gaps. Zones and designs stay relative to the whole image; the scene
+  draws the whole image so that its visible box lands on the placement. Without a readable canvas the
+  whole image is used.
 
 ## Set view (Phase 4)
 
@@ -386,13 +388,14 @@ Code: `setLayout.ts` (pure layout), `useComposition.ts` (view mode, background, 
 // Logical composition size: width COMPOSITION.logicalWidth (1200); height from the decoded
 // background aspect. No usable background → COMPOSITION.fallbackSize (1200 × 900, provisional).
 interface Placement { instanceId: string; x: number; y: number; width: number; height: number } // top-left, logical units
-interface SetLayout { size: { width; height }; placements: Placement[]; strategy: 'rows' | 'grid' }
+interface SetLayout { size: { width; height }; placements: Placement[]; strategy: 'rows' | 'grid' | 'template' }
 interface LayoutItem { instanceId; aspectRatio; displayScale; priority }
 layoutSet(items, size, { paddingRatio, gapRatio, maxItemFill }): SetLayout   // pure, deterministic
 
 const composition = useComposition(selection, designs)   // DesignerPage; provideComposition / injectComposition
 composition.mode            // 'item' | 'set'
 composition.layout          // computed SetLayout (derived, never stored)
+composition.template        // admin-arranged SetTemplate in use, or null (automatic layout)
 composition.size / background / backgroundEntry / backgroundError / pendingBackgroundId
 composition.selectBackground(id) / retry() / showSet() / editItem(instanceId)
 composition.issues / status // 'empty' | 'loading' | 'ready' | 'incomplete'
@@ -406,6 +409,15 @@ composition.issues / status // 'empty' | 'loading' | 'ready' | 'incomplete'
   product image then per-zone clipped groups of image/text layers). No zone outlines, transformer
   or handles exist in this view. Designs are only read, never changed.
 - The stage is sized from the container width; only the layer scale changes on resize.
+
+### Admin-arranged templates ("Mẫu sắp xếp")
+
+`catalog.layouts` (API `public/designer/config` → `layouts[]`) holds layouts the admin arranged for
+one background: one rectangle (fractions of the background) per item and category. `matchTemplate`
+(`templateLayout.ts`) picks the template of the **shown** background whose categories and counts
+equal the set's; `layoutFromTemplate` fills the slots of a category in selection order and fits each
+item inside its rectangle without distortion (`displayScale` is not used). No match → the automatic
+layout below. The admin edits templates at `/thiet-ke/mau-sap-xep`.
 
 ### When the layout changes
 

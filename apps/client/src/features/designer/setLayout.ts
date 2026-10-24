@@ -37,7 +37,7 @@ export interface Placement {
 export interface SetLayout {
   size: Size
   placements: Placement[]
-  strategy: 'rows' | 'grid'
+  strategy: 'rows' | 'grid' | 'template'
 }
 
 export interface LayoutOptions {

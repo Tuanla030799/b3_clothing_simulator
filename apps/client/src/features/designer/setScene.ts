@@ -1,4 +1,4 @@
-import { type Size } from './geometry'
+import { type NormalizedZone, type Size } from './geometry'
 import type { DecodedImage } from './imageFiles'
 import { buildProductContent, type ContentLayer, type ContentResources } from './productContent'
 import type { ZoneDesign } from './design'
@@ -56,6 +56,8 @@ export interface SceneItemSource {
   name: string
   zones: readonly EmbroideryZone[]
   productImage: DecodedImage | null
+  /** Visible part of the product image (fractions); placements describe this box. Default: all. */
+  visible?: NormalizedZone
   designOf: (zoneId: string) => ZoneDesign | undefined
 }
 
@@ -67,6 +69,8 @@ export interface SceneInput {
   resources: ContentResources
 }
 
+const FULL: NormalizedZone = { x: 0, y: 0, width: 1, height: 1 }
+
 export function buildSetScene(input: SceneInput): SetScene {
   const byId = new Map(input.sources.map((source) => [source.instanceId, source]))
   const items: SceneItem[] = []
@@ -77,7 +81,14 @@ export function buildSetScene(input: SceneInput): SetScene {
     if (!source || seen.has(placement.instanceId)) continue
     seen.add(placement.instanceId)
 
-    const drawn = { x: 0, y: 0, width: placement.width, height: placement.height }
+    // The placement is the visible box; the full image frame extends past it by the transparent
+    // margin, so zones and designs (relative to the full image) keep their positions.
+    const visible = source.visible ?? FULL
+    const width = placement.width / visible.width
+    const height = placement.height / visible.height
+    const x = placement.x - visible.x * width
+    const y = placement.y - visible.y * height
+    const drawn = { x: 0, y: 0, width, height }
     const content = source.productImage
       ? buildProductContent(source.zones, source.designOf, drawn, input.resources)
       : []
@@ -85,10 +96,10 @@ export function buildSetScene(input: SceneInput): SetScene {
       instanceId: source.instanceId,
       position: source.position,
       name: source.name,
-      x: placement.x,
-      y: placement.y,
-      width: placement.width,
-      height: placement.height,
+      x,
+      y,
+      width,
+      height,
       image: source.productImage?.element ?? null,
       zones: content.map(({ zone, rect, layers }) => ({
         zoneId: zone.id,

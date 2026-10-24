@@ -40,6 +40,7 @@ const composition = useComposition(selection, designs, {
   backgrounds: props.catalog.backgrounds,
   defaultBackgroundId: props.catalog.defaultBackgroundId,
   categories: props.catalog.categories,
+  layouts: props.catalog.layouts,
 })
 provideComposition(composition)
 const exporter = useExport(selection, designs, composition)

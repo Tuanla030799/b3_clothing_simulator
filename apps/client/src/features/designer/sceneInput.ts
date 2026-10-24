@@ -56,6 +56,7 @@ export function captureSceneInput(
       name: product.name,
       zones,
       productImage: productState?.status === 'ready' ? productState.image : null,
+      visible: productState?.status === 'ready' ? productState.visible : undefined,
       designOf: (zoneId: string) => itemDesigns?.[zoneId],
     }
   })

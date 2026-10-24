@@ -127,6 +127,13 @@ export interface PublicDesignerConfig {
   backgrounds: { id: string; name: string; image: FileRef }[]
   defaultBackgroundId: string | null
   presets: { id: string; name: string; image: FileRef }[]
+  /** Active hand-arranged layouts; slots are fractions (0-1) of the layout's background. */
+  layouts: {
+    id: string
+    name: string
+    backgroundId: string
+    slots: { categoryId: string; x: number; y: number; width: number; height: number }[]
+  }[]
 }
 
 // Type aliases (not interfaces) so they are assignable to the client's query record.
