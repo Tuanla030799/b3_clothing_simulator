@@ -6,11 +6,11 @@ import type { Announcement, NavLink, SiteFooterData } from '../types'
  * "coming soon" page.
  */
 
-export const brandName = 'Lituta'
+export const brandName = 'Lita'
 
 export const announcement: Announcement = {
   id: 'welcome',
-  text: 'Chào mừng bạn đến với Lituta — đồ sơ sinh thêu tên theo thiết kế của bạn.',
+  text: 'Chào mừng bạn đến với Lita — đồ sơ sinh thêu tên theo thiết kế của bạn.',
 }
 
 export const navItems: NavLink[] = [

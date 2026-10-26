@@ -46,7 +46,7 @@ async function submit() {
       >
         <Flex vertical gap="middle">
           <Flex vertical :gap="4">
-            <Typography as="h1" variant="title">Lituta Admin</Typography>
+            <Typography as="h1" variant="title">Lita Admin</Typography>
             <Typography variant="caption">Đăng nhập để quản lý cửa hàng.</Typography>
           </Flex>
           <FormField for="login-email" label="Email" required>

@@ -182,7 +182,7 @@ export function createAdminRouter(
 
   router.afterEach((to) => {
     if (typeof document !== 'undefined') {
-      document.title = to.meta.title ? `${to.meta.title} – Lituta Admin` : 'Lituta Admin'
+      document.title = to.meta.title ? `${to.meta.title} – Lita Admin` : 'Lita Admin'
     }
   })
 

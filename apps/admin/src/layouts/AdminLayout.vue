@@ -73,7 +73,7 @@ async function logout() {
     <aside class="hidden w-60 shrink-0 border-e bg-card lg:block" aria-label="Điều hướng quản trị">
       <Flex vertical class="sticky top-0 h-dvh">
         <Typography as="p" variant="subheading" class="px-6 py-5 text-primary">
-          Lituta Admin
+          Lita Admin
         </Typography>
         <nav class="flex-1 overflow-y-auto">
           <Menu mode="inline" :items="items" :selected-keys="selectedKeys" @click="navigate" />
@@ -85,7 +85,7 @@ async function logout() {
       :open="drawerOpen"
       placement="left"
       :width="260"
-      title="Lituta Admin"
+      title="Lita Admin"
       @close="drawerOpen = false"
     >
       <nav aria-label="Điều hướng quản trị">
