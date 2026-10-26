@@ -59,15 +59,19 @@ if (cartMode) {
   // The set is the cart: keep it in step (cart items whose product is gone are dropped).
   watch(
     () => selection.entries.value,
-    (entries) =>
+    (entries) => {
+      // The chosen sizes stay with their items (the set itself does not know sizes).
+      const sizes = new Map(cart.items.value.map((item) => [item.id, item.sizeId]))
       cart.replace(
         entries.map(({ item, product }) => ({
           id: item.instanceId,
           productId: product.productId,
           productSlug: product.productSlug,
           colorId: product.id,
+          sizeId: sizes.get(item.instanceId) ?? null,
         })),
-      ),
+      )
+    },
     { immediate: true },
   )
 }
@@ -82,6 +86,7 @@ async function addSetToCart() {
         productId: product.productId,
         productSlug: product.productSlug,
         colorId: product.id,
+        sizeId: null,
       })),
     )
     cartNotice.value = result.ok

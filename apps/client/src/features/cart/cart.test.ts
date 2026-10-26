@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { appendItems, type CartItem } from './cart'
 
-const line = (colorId: string) => ({ productId: 'p', productSlug: 'ao', colorId })
+const line = (colorId: string) => ({ productId: 'p', productSlug: 'ao', colorId, sizeId: null })
 const ids = () => {
   let n = 0
   return () => `c${++n}`

@@ -38,7 +38,8 @@ const rows = computed(() =>
   cart.items.value.map((item) => {
     const product = details.data.value?.get(item.productSlug) ?? null
     const color = product?.colors.find((entry) => entry.id === item.colorId) ?? null
-    return { item, product, color, available: Boolean(product && color) }
+    const size = product?.sizes.find((entry) => entry.id === item.sizeId) ?? null
+    return { item, product, color, size, available: Boolean(product && color) }
   }),
 )
 const unavailable = computed(() => rows.value.filter((row) => details.data.value && !row.available))
@@ -111,7 +112,10 @@ const canContinue = computed(
                       >
                         {{ row.product!.name }}
                       </Link>
-                      <Typography variant="caption">Màu {{ row.color!.name }}</Typography>
+                      <Typography variant="caption">
+                        Màu {{ row.color!.name }}
+                        <template v-if="row.size"> · Size {{ row.size.name }}</template>
+                      </Typography>
                     </template>
                     <Typography v-else-if="details.data.value" variant="body" weight="medium">
                       Sản phẩm đã ngừng bán

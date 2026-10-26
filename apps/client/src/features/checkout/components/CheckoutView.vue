@@ -16,6 +16,7 @@ import {
 import { ApiError } from '../../../api/http'
 import { publicCatalog, type PublicProduct } from '../../../api/publicCatalog'
 import { useRemoteData } from '../../../api/useRemoteData'
+import { useCart } from '../../cart/cart'
 import { formatPrice } from '../../catalog/formatPrice'
 import { useCategoryName } from '../../designer/catalog'
 import PictureNotice from '../../designer/components/PictureNotice.vue'
@@ -57,6 +58,30 @@ const details = useRemoteData(async (signal) => {
 
 const sizes = reactive<Record<string, string | undefined>>({})
 const sizeErrors = reactive<Record<string, string | undefined>>({})
+
+// Sizes chosen on the product pages are kept in the cart: start from them (when the product still
+// offers them) and keep the cart in step with changes made here. Collection items are not in the
+// cart, so for them both are no-ops.
+const cart = useCart()
+watch(
+  details.data,
+  (loaded) => {
+    if (!loaded) return
+    for (const entry of selection.entries.value) {
+      const id = entry.item.instanceId
+      const sizeId = cart.items.value.find((item) => item.id === id)?.sizeId
+      const offered = loaded
+        .get(entry.product.productSlug)
+        ?.sizes.some((size) => size.id === sizeId)
+      if (sizeId && offered && !sizes[id]) sizes[id] = sizeId
+    }
+  },
+  { immediate: true },
+)
+function chooseSize(instanceId: string, sizeId: unknown) {
+  sizeErrors[instanceId] = undefined
+  cart.setSize(instanceId, typeof sizeId === 'string' ? sizeId : null)
+}
 
 const rows = computed(() =>
   selection.entries.value.map((entry) => {
@@ -257,7 +282,7 @@ async function submit() {
                               :disabled="submitting"
                               :aria-describedby="describedBy"
                               :aria-invalid="invalid || undefined"
-                              @update:model-value="sizeErrors[row.item.instanceId] = undefined"
+                              @update:model-value="chooseSize(row.item.instanceId, $event)"
                             />
                           </template>
                         </FormField>

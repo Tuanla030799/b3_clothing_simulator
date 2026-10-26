@@ -18,6 +18,8 @@ export interface CartItem {
   productSlug: string
   /** The API color id (the designer's product id). */
   colorId: string
+  /** The chosen API size id; null when the product has no sizes or none is chosen yet. */
+  sizeId: string | null
 }
 
 const STORAGE_KEY = 'lituta.cart'
@@ -28,14 +30,21 @@ function isCartItem(value: unknown): value is CartItem {
     typeof item?.id === 'string' &&
     typeof item.productId === 'string' &&
     typeof item.productSlug === 'string' &&
-    typeof item.colorId === 'string'
+    typeof item.colorId === 'string' &&
+    (typeof item.sizeId === 'string' || item.sizeId === null)
   )
 }
 
 function read(): CartItem[] {
   try {
     const parsed: unknown = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? '[]')
-    return Array.isArray(parsed) ? parsed.filter(isCartItem) : []
+    if (!Array.isArray(parsed)) return []
+    // Carts stored before sizes were kept have no sizeId.
+    return parsed
+      .map((item: unknown) =>
+        item && typeof item === 'object' && !('sizeId' in item) ? { ...item, sizeId: null } : item,
+      )
+      .filter(isCartItem)
   } catch {
     return []
   }
@@ -114,9 +123,18 @@ export function useCart() {
         next.length === items.value.length &&
         next.every((item, index) => {
           const current = items.value[index]
-          return current?.id === item.id && current.colorId === item.colorId
+          return (
+            current?.id === item.id &&
+            current.colorId === item.colorId &&
+            current.sizeId === item.sizeId
+          )
         })
       if (!same) set([...next])
+    },
+    /** Changes the size of one item (no-op for an id not in the cart). */
+    setSize(id: string, sizeId: string | null) {
+      if (!items.value.some((item) => item.id === id && item.sizeId !== sizeId)) return
+      set(items.value.map((item) => (item.id === id ? { ...item, sizeId } : item)))
     },
   }
 }

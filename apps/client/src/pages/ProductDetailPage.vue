@@ -24,22 +24,43 @@ const color = computed(
   () => product.data.value?.colors.find((entry) => entry.id === colorId.value) ?? null,
 )
 
+// A product with sizes needs one before it goes to the cart (checkout can still change it).
+const sizeId = ref<string | null>(null)
+watch(product.data, () => (sizeId.value = null))
+const size = computed(
+  () => product.data.value?.sizes.find((entry) => entry.id === sizeId.value) ?? null,
+)
+const sizeError = ref(false)
+watch(sizeId, () => (sizeError.value = false))
+
 // Items are designed from the cart (the design tool works on the cart).
 const cart = useCart()
 const adding = ref(false)
 const added = ref<{ ok: boolean; text: string } | null>(null)
-watch(colorId, () => (added.value = null))
+watch([colorId, sizeId], () => (added.value = null))
 
 async function addToCart() {
   const detail = product.data.value
   if (!color.value || !detail) return
+  if (detail.sizes.length && !size.value) {
+    sizeError.value = true
+    return
+  }
   adding.value = true
   try {
     const result = await cart.add([
-      { productId: detail.id, productSlug: detail.slug, colorId: color.value.id },
+      {
+        productId: detail.id,
+        productSlug: detail.slug,
+        colorId: color.value.id,
+        sizeId: size.value?.id ?? null,
+      },
     ])
+    const label = [detail.name, color.value.name, size.value && `size ${size.value.name}`]
+      .filter(Boolean)
+      .join(' – ')
     added.value = result.ok
-      ? { ok: true, text: `Đã thêm ${detail.name} – ${color.value.name} vào giỏ.` }
+      ? { ok: true, text: `Đã thêm ${label} vào giỏ.` }
       : { ok: false, text: `Giỏ hàng đã đủ ${result.limit} món.` }
   } catch {
     added.value = { ok: false, text: 'Chưa thêm được vào giỏ. Vui lòng thử lại.' }
@@ -148,18 +169,36 @@ async function addToCart() {
             <section v-if="product.data.value.sizes.length" aria-labelledby="size-heading">
               <Flex vertical gap="small">
                 <Typography id="size-heading" as="h2" variant="body" weight="semibold">
-                  Kích thước có sẵn
+                  Kích thước: {{ size?.name ?? 'chưa chọn' }}
                 </Typography>
-                <Flex as="ul" wrap gap="small" aria-labelledby="size-heading">
-                  <li
-                    v-for="size in product.data.value.sizes"
-                    :key="size.id"
-                    class="rounded-full bg-secondary px-3 py-1 text-sm text-secondary-foreground"
+                <Flex
+                  wrap
+                  gap="small"
+                  role="group"
+                  aria-labelledby="size-heading"
+                  :aria-describedby="sizeError ? 'size-error' : undefined"
+                >
+                  <Button
+                    v-for="entry in product.data.value.sizes"
+                    :key="entry.id"
+                    size="small"
+                    :variant="entry.id === sizeId ? 'primary' : 'default'"
+                    :aria-pressed="entry.id === sizeId"
+                    class="min-w-12"
+                    @click="sizeId = entry.id"
                   >
-                    {{ size.name }}
-                  </li>
+                    {{ entry.name }}
+                  </Button>
                 </Flex>
-                <Typography variant="caption">Chọn kích thước khi đặt hàng.</Typography>
+                <Typography
+                  v-if="sizeError"
+                  id="size-error"
+                  role="alert"
+                  variant="caption"
+                  class="text-destructive"
+                >
+                  Vui lòng chọn kích thước.
+                </Typography>
               </Flex>
             </section>
 
