@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { Input, InputNumber, Textarea } from 'ant-design-vue'
-import { Col, FormField, Row, Select } from '@lituta/ui'
+import { Col, FormField, Row } from '@lituta/ui'
 import { fieldErrors } from '../../api/httpClient'
 import { productsApi } from '../../api/resources'
 import type { Category, Product, ProductCreateExtras } from '../../api/types'
 import { useFeedback } from '../../composables/useFeedback'
-import { categoryOptions as treeOptions } from '../../utils/categoryTree'
+import CategoryTreeSelect from '../../components/CategoryTreeSelect.vue'
+import { categoryTree } from '../../utils/categoryTree'
 import { formatMoneyInput, parseMoneyInput } from '../../utils/money'
 import { SLUG_PATTERN, suggestSlug } from '../../utils/slug'
 
@@ -67,8 +68,8 @@ const dirty = computed(() => {
   return (Object.keys(initial) as (keyof FormState)[]).some((key) => form[key] !== initial[key])
 })
 
-// Only categories without children hold products; the others are listed but disabled.
-const categoryOptions = computed(() => treeOptions(props.categories, { leavesOnly: true }))
+// Only categories without children hold products; the others can be expanded but not chosen.
+const categoryTreeData = computed(() => categoryTree(props.categories, { leavesOnly: true }))
 
 function validate() {
   const next: Record<string, string> = {}
@@ -115,12 +116,11 @@ defineExpose({ save, reset, validate, saving, dirty, errors })
       <Col :xs="24" :md="12">
         <FormField for="product-category" label="Danh mục" :error="errors.categoryId" required>
           <template #default="{ id }">
-            <Select
+            <CategoryTreeSelect
               :id="id"
               v-model="form.categoryId"
-              :options="categoryOptions"
+              :tree-data="categoryTreeData"
               placeholder="Chọn danh mục"
-              size="small"
             />
           </template>
         </FormField>

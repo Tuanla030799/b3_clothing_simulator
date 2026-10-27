@@ -1,36 +1,47 @@
 <script setup lang="ts">
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
 import { Plus, Search } from '@lucide/vue'
-import { Input, Modal, Switch, Table, type TableColumnType } from 'ant-design-vue'
+import { Input, Modal, Switch, Table } from 'ant-design-vue'
 import { Button, Col, Flex, FormField, Row, Select, Typography } from '@lituta/ui'
 import { errorMessage, fieldErrors } from '../api/httpClient'
 import { categoriesApi } from '../api/resources'
 import type { Category } from '../api/types'
 import PageHeader from '../components/PageHeader.vue'
 import ReorderHandle from '../components/ReorderHandle.vue'
+import CategoryTreeSelect from '../components/CategoryTreeSelect.vue'
+import SortModeActions from '../components/SortModeActions.vue'
 import { useFeedback } from '../composables/useFeedback'
+import { useLeaveGuard } from '../composables/useLeaveGuard'
+import { sortModeColumns } from '../composables/useSortMode'
 import {
   categoryTrail,
+  changedGroups,
+  flattenTree,
   isShownToCustomers,
-  outlineNumbers,
   MAX_CATEGORY_DEPTH,
-  parentOptions,
+  moveSibling,
+  outlineNumbers,
+  parentTree,
   ROOT_VALUE,
+  siblingOrder,
+  type SiblingOrder,
   treeErrorText,
 } from '../utils/categoryTree'
+import { isListChanged } from '../utils/listOrder'
 import { SLUG_PATTERN, suggestSlug } from '../utils/slug'
 
 /*
  * The category tree (at most 3 levels, API docs/category-tree-contract.md). Every category is
  * loaded at once (the API returns them in tree order); search and status filters run here and
- * show a flat list with the full trail. Order changes among siblings with the up/down buttons;
- * the parent changes in the edit form.
+ * show a flat list with the full trail. "Sắp xếp" opens the sorting mode: categories move among
+ * their siblings with the up/down buttons (no drag: a flat drag position is ambiguous in a tree)
+ * and "Lưu thứ tự" saves each changed group of siblings (`PUT /admin/categories/order`). The
+ * parent changes in the edit form.
  */
 const feedback = useFeedback()
 const categories = shallowRef<Category[]>([])
 const loading = ref(false)
 const loadError = ref('')
-const moving = ref(false)
 
 async function load() {
   loading.value = true
@@ -61,38 +72,66 @@ const rows = computed(() => {
   )
 })
 
-// "1", "1.1", "1.1.2": numbered on the whole tree, so filtering keeps each category's number.
-const numbers = computed(() => outlineNumbers(categories.value))
+// --- sorting mode ---
+const sorting = ref(false)
+const savingOrder = ref(false)
+const order = shallowRef<SiblingOrder>(new Map())
+let initialOrder: SiblingOrder = new Map()
+const orderDirty = computed(
+  () => sorting.value && changedGroups(initialOrder, order.value).length > 0,
+)
+useLeaveGuard(() => orderDirty.value)
 
-const siblingsOf = (category: Category) =>
-  categories.value.filter((other) => other.parentId === category.parentId)
-
-/** Moves the category one place up (-1) or down (+1) among its siblings. */
-async function moveBy(category: Category, delta: number) {
-  const siblings = siblingsOf(category)
-  const to = siblings.findIndex((other) => other.id === category.id) + delta
-  if (moving.value || to < 0 || to >= siblings.length) return
-  const others = siblings.filter((other) => other.id !== category.id)
-  moving.value = true
-  try {
-    await categoriesApi.move(category.id, to === 0 ? null : others[to - 1]!.id)
-  } catch (error) {
-    feedback.error(error)
-  } finally {
-    moving.value = false
-    await load()
-  }
+function startSorting() {
+  Object.assign(filters, { q: '', active: 'all' })
+  initialOrder = siblingOrder(categories.value)
+  order.value = initialOrder
+  sorting.value = true
 }
 
-const columns: TableColumnType<Category>[] = [
-  { title: 'Thứ tự', key: 'order', width: 110 },
-  { title: 'STT', key: 'number', width: 80 },
-  { title: 'Tên', key: 'name' },
-  { title: 'Đường dẫn', dataIndex: 'path', key: 'path' },
-  { title: 'Sản phẩm', dataIndex: 'productCount', key: 'productCount', width: 100 },
-  { title: 'Hiện', key: 'isActive', width: 140 },
-  { title: '', key: 'actions', width: 230, align: 'right' },
-]
+/** Saves every group of siblings whose order changed (each group in one request). */
+async function saveOrder() {
+  const groups = changedGroups(initialOrder, order.value)
+  savingOrder.value = true
+  try {
+    for (const parentId of groups) {
+      await categoriesApi.reorder(parentId, order.value.get(parentId) ?? [])
+    }
+    feedback.success('Đã lưu thứ tự.')
+    sorting.value = false
+  } catch (error) {
+    if (!isListChanged(error)) return feedback.error(error)
+    feedback.warning('Danh mục vừa thay đổi nên chưa lưu hết; đã tải lại, vui lòng sắp xếp lại.')
+    sorting.value = false
+  } finally {
+    savingOrder.value = false
+  }
+  await load()
+}
+
+const shown = computed(() =>
+  sorting.value ? flattenTree(categories.value, order.value) : rows.value,
+)
+
+// "1", "1.1", "1.1.2": numbered on the whole tree (as sorted), so filtering keeps the numbers.
+const numbers = computed(() => outlineNumbers(sorting.value ? shown.value : categories.value))
+
+const siblingsOf = (category: Category) => order.value.get(category.parentId) ?? []
+
+const columns = computed(() =>
+  sortModeColumns<Category>(
+    [
+      { title: 'STT', key: 'number', width: 80 },
+      { title: 'Thứ tự', key: 'order', width: 110 },
+      { title: 'Tên', key: 'name' },
+      { title: 'Đường dẫn', dataIndex: 'path', key: 'path' },
+      { title: 'Sản phẩm', dataIndex: 'productCount', key: 'productCount', width: 100 },
+      { title: 'Hiện', key: 'isActive', width: 140 },
+      { title: '', key: 'actions', width: 230, align: 'right' },
+    ],
+    sorting.value,
+  ),
+)
 
 /** Why a child cannot be added under the category, or null when it can. */
 function childBlocked(category: Category): string | null {
@@ -109,7 +148,7 @@ const form = reactive({ name: '', slug: '', isActive: true, parent: ROOT_VALUE }
 const errors = ref<Record<string, string>>({})
 let slugTouched = false
 
-const formParentOptions = computed(() => parentOptions(categories.value, editing.value?.id))
+const formParentTree = computed(() => parentTree(categories.value, editing.value?.id))
 
 function openForm(category: Category | null, parentId: string | null = null) {
   editing.value = category
@@ -214,14 +253,23 @@ function remove(category: Category) {
     description="Tối đa 3 cấp; chỉ danh mục không có danh mục con mới chứa sản phẩm. Ẩn một danh mục sẽ ẩn cả danh mục con và sản phẩm của chúng khỏi trang khách."
   >
     <template #actions>
-      <Button @click="openForm(null)">
+      <SortModeActions
+        :active="sorting"
+        :saving="savingOrder"
+        :dirty="orderDirty"
+        :disabled="categories.length < 2"
+        @start="startSorting()"
+        @save="saveOrder()"
+        @cancel="sorting = false"
+      />
+      <Button v-if="!sorting" @click="openForm(null)">
         <template #icon><Plus /></template>
         Thêm danh mục
       </Button>
     </template>
   </PageHeader>
 
-  <Row :gutter="[12, 12]" class="mb-4">
+  <Row v-if="!sorting" :gutter="[12, 12]" class="mb-4">
     <Col :xs="24" :sm="12" :lg="8" :xl="6">
       <form role="search" @submit.prevent>
         <Input
@@ -247,14 +295,17 @@ function remove(category: Category) {
   <Typography v-if="loadError" role="alert" class="mb-4 text-destructive">
     {{ loadError }}
   </Typography>
-  <Typography v-if="filtering" variant="caption" class="mb-2">
-    Đang lọc nên danh sách hiển thị phẳng; bỏ lọc để đổi thứ tự.
+  <Typography v-if="sorting" variant="caption" class="mb-2">
+    Dùng nút lên/xuống để đổi thứ tự trong cùng danh mục cha, rồi bấm “Lưu thứ tự”.
+  </Typography>
+  <Typography v-else-if="filtering" variant="caption" class="mb-2">
+    Đang lọc nên danh sách hiển thị phẳng.
   </Typography>
 
   <Table
     row-key="id"
     :columns="columns"
-    :data-source="rows"
+    :data-source="shown"
     :loading="loading"
     :pagination="false"
     :scroll="{ x: 960 }"
@@ -264,18 +315,18 @@ function remove(category: Category) {
         <ReorderHandle
           :label="record.name"
           :drag="false"
-          :first="siblingsOf(record as Category)[0]?.id === record.id"
-          :last="siblingsOf(record as Category).at(-1)?.id === record.id"
-          :disabled="moving || filtering"
-          @up="moveBy(record as Category, -1)"
-          @down="moveBy(record as Category, 1)"
+          :first="siblingsOf(record as Category)[0] === record.id"
+          :last="siblingsOf(record as Category).at(-1) === record.id"
+          :disabled="savingOrder"
+          @up="order = moveSibling(order, record.parentId, record.id, -1)"
+          @down="order = moveSibling(order, record.parentId, record.id, 1)"
         />
       </template>
       <template v-else-if="column.key === 'number'">
         <span class="tabular-nums">{{ numbers.get(record.id) }}</span>
       </template>
       <template v-else-if="column.key === 'name'">
-        <span v-if="filtering">{{ categoryTrail(categories, record.id) }}</span>
+        <span v-if="filtering && !sorting">{{ categoryTrail(categories, record.id) }}</span>
         <span v-else :style="{ paddingLeft: `${(record.depth - 1) * 1.5}rem` }">
           <span v-if="record.depth > 1" class="text-muted-foreground" aria-hidden="true">↳ </span>
           {{ record.name }}
@@ -285,6 +336,7 @@ function remove(category: Category) {
         <Flex vertical :gap="2">
           <Switch
             :checked="record.isActive"
+            :disabled="sorting"
             :aria-label="`Hiện danh mục ${record.name}`"
             class="self-start"
             @change="(value) => toggleActive(record as Category, Boolean(value))"
@@ -352,7 +404,7 @@ function remove(category: Category) {
           :error="errors.parent"
         >
           <template #default="{ id }">
-            <Select :id="id" v-model="form.parent" size="small" :options="formParentOptions" />
+            <CategoryTreeSelect :id="id" v-model="form.parent" :tree-data="formParentTree" />
           </template>
         </FormField>
         <FormField

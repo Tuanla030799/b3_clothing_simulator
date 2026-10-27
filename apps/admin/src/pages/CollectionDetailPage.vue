@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { Plus, Trash2 } from '@lucide/vue'
-import { Select as AntSelect, Spin, Table, Tag, type TableColumnType } from 'ant-design-vue'
+import { Select as AntSelect, Spin, Table, Tag } from 'ant-design-vue'
 import { Button, Col, EmptyState, Flex, Link, Row, Typography } from '@lituta/ui'
 import { errorMessage } from '../api/httpClient'
 import { collectionsApi, productsApi } from '../api/resources'
@@ -10,10 +10,11 @@ import type { Collection, CollectionMember } from '../api/types'
 import FormFooter from '../components/FormFooter.vue'
 import PageHeader from '../components/PageHeader.vue'
 import ReorderHandle from '../components/ReorderHandle.vue'
+import SortModeActions from '../components/SortModeActions.vue'
 import { useFeedback } from '../composables/useFeedback'
 import { useLeaveGuard } from '../composables/useLeaveGuard'
 import { usePagedTable } from '../composables/usePagedTable'
-import { useRowReorder } from '../composables/useRowReorder'
+import { sortModeColumns, useSortMode } from '../composables/useSortMode'
 import CollectionForm from '../features/catalog/CollectionForm.vue'
 import { formatPrice } from '../utils/format'
 
@@ -48,15 +49,19 @@ watch(
 const infoForm = ref<InstanceType<typeof CollectionForm> | null>(null)
 const { allowLeave } = useLeaveGuard(() => Boolean(infoForm.value?.dirty))
 
-// Drag and drop (or the up/down buttons); the API computes the order. New members go last.
-const reorder = useRowReorder({
+// Sorting mode: rows move locally and "Lưu thứ tự" saves the whole order at once.
+const sort = useSortMode({
   container: useTemplateRef<HTMLElement>('membersWrap'),
-  rows: () => members.rows.value,
-  rowId: (member) => member.product.id,
-  move: (productId, afterId) => collectionsApi.moveMember(props.id, productId, afterId),
+  loadAll: () => collectionsApi.allMembers(props.id),
+  save: (ids) => collectionsApi.reorderMembers(props.id, ids),
   reload: () => members.reload(),
-  disabled: () => members.page.value > 1,
+  rowId: (member) => member.product.id,
 })
+// Another collection opened in the same page leaves the sorting mode.
+watch(
+  () => props.id,
+  () => sort.cancel(),
+)
 
 // --- add a product (searched on the server) ---
 const searchOptions = ref<{ label: string; value: string }[]>([])
@@ -141,13 +146,19 @@ function removeCollection() {
   )
 }
 
-const columns: TableColumnType<CollectionMember>[] = [
-  { title: 'Thứ tự', key: 'order', width: 120 },
-  { title: 'Sản phẩm', key: 'product' },
-  { title: 'Giá', key: 'price', width: 130 },
-  { title: 'Trang khách', key: 'public', width: 130 },
-  { title: '', key: 'actions', width: 80, align: 'right', fixed: 'right' },
-]
+const columns = computed(() =>
+  sortModeColumns<CollectionMember>(
+    [
+      { title: 'STT', key: 'number', width: 70 },
+      { title: 'Thứ tự', key: 'order', width: 120 },
+      { title: 'Sản phẩm', key: 'product' },
+      { title: 'Giá', key: 'price', width: 130 },
+      { title: 'Trang khách', key: 'public', width: 130 },
+      { title: '', key: 'actions', width: 80, align: 'right', fixed: 'right' },
+    ],
+    sort.active.value,
+  ),
+)
 </script>
 
 <template>
@@ -183,10 +194,24 @@ const columns: TableColumnType<CollectionMember>[] = [
 
           <section aria-labelledby="members-heading" class="rounded-xl border bg-card p-4">
             <Flex vertical gap="middle">
-              <Typography id="members-heading" as="h2" variant="subheading">
-                Sản phẩm ({{ collection?.productCount ?? 0 }})
-              </Typography>
-              <form class="max-w-xl" @submit.prevent="add">
+              <Flex align="center" justify="space-between" wrap gap="small">
+                <Typography id="members-heading" as="h2" variant="subheading">
+                  Sản phẩm ({{ collection?.productCount ?? 0 }})
+                </Typography>
+                <Flex wrap gap="small">
+                  <SortModeActions
+                    :active="sort.active.value"
+                    :loading="sort.loading.value"
+                    :saving="sort.saving.value"
+                    :dirty="sort.dirty.value"
+                    :disabled="members.rows.value.length === 0"
+                    @start="sort.start()"
+                    @save="sort.save()"
+                    @cancel="sort.cancel()"
+                  />
+                </Flex>
+              </Flex>
+              <form v-if="!sort.active.value" class="max-w-xl" @submit.prevent="add">
                 <Flex gap="small">
                   <AntSelect
                     v-model:value="picked"
@@ -211,21 +236,24 @@ const columns: TableColumnType<CollectionMember>[] = [
                 <Table
                   row-key="createdAt"
                   :columns="columns"
-                  :data-source="members.rows.value"
-                  :loading="members.loading.value"
-                  :pagination="members.pagination.value"
-                  :scroll="{ x: 700 }"
+                  :data-source="sort.active.value ? sort.rows.value : members.rows.value"
+                  :loading="members.loading.value || sort.loading.value"
+                  :pagination="sort.active.value ? false : members.pagination.value"
+                  :scroll="{ x: 770 }"
                   @change="members.onChange"
                 >
                   <template #bodyCell="{ column, record, index }">
-                    <template v-if="column.key === 'order'">
+                    <template v-if="column.key === 'number'">{{
+                      sort.active.value ? index + 1 : members.rowNumber(index)
+                    }}</template>
+                    <template v-else-if="column.key === 'order'">
                       <ReorderHandle
                         :label="record.product.name"
                         :first="index === 0"
-                        :last="index === members.rows.value.length - 1"
-                        :disabled="reorder.moving.value || members.page.value > 1"
-                        @up="reorder.moveBy(index, -1)"
-                        @down="reorder.moveBy(index, 1)"
+                        :last="index === sort.rows.value.length - 1"
+                        :disabled="sort.saving.value"
+                        @up="sort.moveBy(index, -1)"
+                        @down="sort.moveBy(index, 1)"
                       />
                     </template>
                     <template v-else-if="column.key === 'product'">

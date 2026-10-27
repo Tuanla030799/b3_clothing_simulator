@@ -132,6 +132,7 @@ function removeColor(color: ProductColor) {
 }
 
 const colorColumns: TableColumnType<ProductColor>[] = [
+  { title: 'STT', key: 'number', width: 70 },
   { title: 'Ảnh', key: 'images', width: 150 },
   { title: 'Màu', key: 'name' },
   { title: 'Đang bán', key: 'isActive', width: 100 },
@@ -257,10 +258,11 @@ function removeSize(size: ProductSize) {
                 :columns="colorColumns"
                 :data-source="product.colors"
                 :pagination="false"
-                :scroll="{ x: 520 }"
+                :scroll="{ x: 590 }"
               >
-                <template #bodyCell="{ column, record }">
-                  <template v-if="column.key === 'images'">
+                <template #bodyCell="{ column, record, index }">
+                  <template v-if="column.key === 'number'">{{ index + 1 }}</template>
+                  <template v-else-if="column.key === 'images'">
                     <Flex gap="small">
                       <Image
                         :src="record.displayImage.url"

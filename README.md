@@ -795,19 +795,25 @@ on a separate subdomain (see [Deployment](#deployment)).
   `/bo-suu-tap/moi` and `/bo-suu-tap/:id` (information and products). Leaving a page with unsaved
   changes asks first ([useLeaveGuard.ts](apps/admin/src/composables/useLeaveGuard.ts)). Short forms
   (categories, banners, backgrounds, ready-made images, order quote/status) stay in modals.
-- **Ordering** is drag and drop ([useRowReorder.ts](apps/admin/src/composables/useRowReorder.ts)
-  with SortableJS on the Ant table body, plus up/down buttons for the keyboard in
-  [ReorderHandle.vue](apps/admin/src/components/ReorderHandle.vue)) for collections,
-  collection members, banners, backgrounds, ready-made images and featured products
-  (`/san-pham/noi-bat`, at most 24). The admin only sends the new neighbour
-  (`PATCH .../position { afterId }`); the API computes `sortOrder`, so no form has an order field.
-  New rows go last; the general product list is newest first. Ordering is off beyond page 1 of a
-  list (100 rows per page).
+- **STT and ordering:** every admin table has an `STT` column (continuing across pages; categories
+  use outline numbers 1, 1.1, 1.1.1). Collections, collection members, banners, backgrounds,
+  ready-made images, set layouts, featured products (`/san-pham/noi-bat`, at most 24) and
+  categories are ordered in a **sorting mode** ([useSortMode.ts](apps/admin/src/composables/useSortMode.ts),
+  [SortModeActions.vue](apps/admin/src/components/SortModeActions.vue)): the ordering controls are
+  hidden until “Sắp xếp” is pressed; the whole list is then loaded and rows move locally (drag and
+  drop with SortableJS, or the up/down buttons of
+  [ReorderHandle.vue](apps/admin/src/components/ReorderHandle.vue) for the keyboard) while editing,
+  deleting and toggles are off. “Lưu thứ tự” sends the whole order once (`PUT .../order { ids }`,
+  API `docs/list-order-contract.md`); “Hủy” drops it, and leaving with unsaved changes asks first.
+  If the list changed meanwhile (409 `LIST_CHANGED`) nothing is saved and the table reloads. The
+  API computes `sortOrder`, so no form has an order field. New rows go last; the general product
+  list is newest first.
 - **Categories** are a tree (at most 3 levels; only categories without children hold products;
-  hiding one hides its branch). The page loads every category and shows the tree indented; order
-  changes among siblings with the up/down buttons only (no drag: a flat drag position is ambiguous
-  in a tree), and the parent changes in the edit form (`PATCH .../position { parentId, afterId }`,
-  the branch moves along and goes last). Selects show the full trail (“Áo › Áo thun”); a product's
+  hiding one hides its branch). The page loads every category and shows the tree indented; in the
+  sorting mode categories move among their siblings with the up/down buttons only (no drag: a flat
+  drag position is ambiguous in a tree) and each changed group of siblings is saved with
+  `PUT /admin/categories/order { parentId, ids }`; the parent changes in the edit form (`PATCH .../position { parentId, afterId }`,
+  the branch moves along and goes last). Category pickers are a tree ([CategoryTreeSelect.vue](apps/admin/src/components/CategoryTreeSelect.vue), Ant `TreeSelect`): children indented under their parent with only their own name, “+”/“−” to expand or collapse (no icon without children), search by name, collapsed on opening except the branch of the chosen category, and the full trail (“Áo › Áo thun”) in the closed select; a product's
   category must have no children, while item limits, layout slots and the product filter accept
   any level ([categoryTree.ts](apps/admin/src/utils/categoryTree.ts)).
 - **Colors** are picked from the API palette (`GET /admin/color-palette`; each key once per

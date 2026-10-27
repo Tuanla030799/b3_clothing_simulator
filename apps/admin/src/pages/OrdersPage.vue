@@ -41,6 +41,7 @@ watch(
 )
 
 const columns: TableColumnType<OrderListItem>[] = [
+  { title: 'STT', key: 'number', width: 70 },
   { title: 'Mã đơn', key: 'orderCode', width: 150 },
   { title: 'Khách', key: 'customer' },
   { title: 'Món', dataIndex: 'itemCount', key: 'itemCount', width: 70 },
@@ -99,11 +100,12 @@ const columns: TableColumnType<OrderListItem>[] = [
     :data-source="table.rows.value"
     :loading="table.loading.value"
     :pagination="table.pagination.value"
-    :scroll="{ x: 900 }"
+    :scroll="{ x: 970 }"
     @change="table.onChange"
   >
-    <template #bodyCell="{ column, record }">
-      <template v-if="column.key === 'orderCode'">
+    <template #bodyCell="{ column, record, index }">
+      <template v-if="column.key === 'number'">{{ table.rowNumber(index) }}</template>
+      <template v-else-if="column.key === 'orderCode'">
         <Link :as="RouterLink" :to="`/don-hang/${record.id}`">{{ record.orderCode }}</Link>
       </template>
       <template v-else-if="column.key === 'customer'">

@@ -3,14 +3,24 @@ import type { Category } from '../api/types'
 import {
   branchHeight,
   branchIds,
-  categoryOptions,
   categoryTrail,
+  categoryTree,
+  type CategoryTreeNode,
+  changedGroups,
+  flattenTree,
   isShownToCustomers,
+  moveSibling,
   outlineNumbers,
-  parentOptions,
+  parentTree,
+  pathTo,
   ROOT_VALUE,
+  siblingOrder,
   treeErrorText,
 } from './categoryTree'
+
+/** Every node of a tree, depth first. */
+const nodes = (tree: readonly CategoryTreeNode[]): CategoryTreeNode[] =>
+  tree.flatMap((node) => [node, ...nodes(node.children ?? [])])
 
 function category(
   id: string,
@@ -43,6 +53,7 @@ const tree = [
   category('len', 'ao', 2, { productCount: 4 }),
   category('quan', null, 1, { isActive: false }),
 ]
+const categories = tree
 
 describe('category tree helpers', () => {
   it('builds the trail from the root', () => {
@@ -63,24 +74,47 @@ describe('category tree helpers', () => {
     expect(branchHeight(tree, 'quan')).toBe(1)
   })
 
-  it('disables categories with children for a product and marks hidden ones', () => {
-    const options = categoryOptions(tree, { leavesOnly: true })
-    expect(options.filter((o) => o.disabled).map((o) => o.value)).toEqual(['ao', 'thun'])
-    expect(options.find((o) => o.value === 'quan')?.label).toBe('QUAN (đang ẩn)')
-    expect(categoryOptions(tree).some((o) => o.disabled)).toBe(false)
+  it('builds the tree with indented names, the trail for the closed select and leaf-only choice', () => {
+    const tree = categoryTree(categories, { leavesOnly: true })
+    expect(tree.map((node) => node.value)).toEqual(['ao', 'quan'])
+    const thun = tree[0]!.children![0]!
+    expect(thun).toMatchObject({
+      value: 'thun',
+      title: 'THUN',
+      trail: 'AO › THUN',
+      selectable: false,
+    })
+    expect(thun.children).toEqual([
+      { value: 'co-tron', title: 'CO-TRON', trail: 'AO › THUN › CO-TRON' },
+    ])
+    // Leaves have no children array (no expand icon).
+    expect(nodes(tree).find((node) => node.value === 'len')?.children).toBeUndefined()
+    expect(nodes(tree).find((node) => node.value === 'quan')?.title).toBe('QUAN (đang ẩn)')
+    expect(nodes(categoryTree(categories)).some((node) => node.selectable === false)).toBe(false)
   })
 
   it('offers only parents that keep the tree valid', () => {
     const enabled = (movingId?: string) =>
-      parentOptions(tree, movingId)
-        .filter((o) => !o.disabled)
-        .map((o) => o.value)
+      nodes(parentTree(categories, movingId))
+        .filter((node) => !node.disabled)
+        .map((node) => node.value)
     // New category: not under level 3, not under a category with products.
     expect(enabled()).toEqual([ROOT_VALUE, 'ao', 'thun', 'quan'])
+    expect(nodes(parentTree(categories)).find((node) => node.value === 'len')?.title).toBe(
+      'LEN (đang có sản phẩm)',
+    )
     // thun has 2 levels: only a root can take it; its own branch is not offered at all.
     expect(enabled('thun')).toEqual([ROOT_VALUE, 'ao', 'quan'])
-    expect(parentOptions(tree, 'thun').map((o) => o.value)).not.toContain('co-tron')
+    expect(nodes(parentTree(categories, 'thun')).map((node) => node.value)).not.toContain('co-tron')
     expect(enabled('ao')).toEqual([ROOT_VALUE])
+  })
+
+  it('finds the path to a value', () => {
+    const tree = categoryTree(categories)
+    expect(pathTo(tree, 'co-tron')).toEqual(['ao', 'thun', 'co-tron'])
+    expect(pathTo(tree, 'quan')).toEqual(['quan'])
+    expect(pathTo(tree, undefined)).toEqual([])
+    expect(pathTo(tree, 'missing')).toEqual([])
   })
 
   it('numbers the tree like an outline', () => {
@@ -96,6 +130,29 @@ describe('category tree helpers', () => {
       thun: '1',
       quan: '2',
     })
+  })
+
+  it('moves categories among siblings only and lists the groups that changed', () => {
+    const initial = siblingOrder(tree)
+    expect(initial.get(null)).toEqual(['ao', 'quan'])
+    expect(initial.get('ao')).toEqual(['thun', 'len'])
+
+    const moved = moveSibling(initial, 'ao', 'len', -1)
+    expect(flattenTree(tree, moved).map((c) => c.id)).toEqual([
+      'ao',
+      'len',
+      'thun',
+      'co-tron',
+      'quan',
+    ])
+    expect(changedGroups(initial, moved)).toEqual(['ao'])
+    // Out of range: nothing changes.
+    expect(changedGroups(initial, moveSibling(initial, 'ao', 'thun', -1))).toEqual([])
+    // Moving back restores the initial order.
+    expect(changedGroups(initial, moveSibling(moved, 'ao', 'len', 1))).toEqual([])
+    const roots = moveSibling(moved, null, 'quan', -1)
+    expect(changedGroups(initial, roots)).toEqual([null, 'ao'])
+    expect(flattenTree(tree, roots).map((c) => c.id)[0]).toBe('quan')
   })
 
   it('translates the API reason codes', () => {

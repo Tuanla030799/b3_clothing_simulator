@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, GripVertical } from '@lucide/vue'
 import { Button, Flex } from '@lituta/ui'
 
 /*
- * Order cell of a reorderable table (useRowReorder): a drag handle for the mouse/touch and
+ * Order cell of a table in sorting mode (useSortMode): a drag handle for the mouse/touch and
  * up/down buttons for the keyboard. `drag: false` keeps only the buttons (lists where a flat
  * drag position is ambiguous, such as a tree).
  */

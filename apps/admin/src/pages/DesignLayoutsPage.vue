@@ -2,15 +2,16 @@
 import { computed, shallowRef, useTemplateRef } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { Plus } from '@lucide/vue'
-import { Switch, Table, type TableColumnType } from 'ant-design-vue'
+import { Switch, Table } from 'ant-design-vue'
 import { Button, Flex, Link, Typography } from '@lituta/ui'
 import { categoriesApi, designAssetsApi, designLayoutsApi } from '../api/resources'
 import type { Category, DesignAsset, DesignLayout } from '../api/types'
 import PageHeader from '../components/PageHeader.vue'
 import ReorderHandle from '../components/ReorderHandle.vue'
+import SortModeActions from '../components/SortModeActions.vue'
 import { useFeedback } from '../composables/useFeedback'
 import { usePagedTable } from '../composables/usePagedTable'
-import { useRowReorder } from '../composables/useRowReorder'
+import { sortModeColumns, useSortMode } from '../composables/useSortMode'
 
 /*
  * Hand-arranged layouts of the gift set. When a customer picks a background and the set has exactly
@@ -31,22 +32,28 @@ Promise.all([categoriesApi.all(), designAssetsApi('backgrounds').all()])
 const table = usePagedTable((page, pageSize) => designLayoutsApi.list({ page, pageSize }), 100)
 void table.reload()
 
-const reorder = useRowReorder({
+// Sorting mode: rows move locally and "Lưu thứ tự" saves the whole order at once.
+const sort = useSortMode({
   container: useTemplateRef<HTMLElement>('tableWrap'),
-  rows: () => table.rows.value,
-  move: (id, afterId) => designLayoutsApi.move(id, afterId),
+  loadAll: designLayoutsApi.all,
+  save: designLayoutsApi.reorder,
   reload: () => table.reload(),
-  disabled: () => table.page.value > 1,
 })
 
-const columns: TableColumnType<DesignLayout>[] = [
-  { title: 'Thứ tự', key: 'order', width: 120 },
-  { title: 'Tên', key: 'name' },
-  { title: 'Nền', key: 'background', width: 200 },
-  { title: 'Gồm', key: 'summary' },
-  { title: 'Hiện', key: 'isActive', width: 90 },
-  { title: '', key: 'actions', width: 150, align: 'right' },
-]
+const columns = computed(() =>
+  sortModeColumns<DesignLayout>(
+    [
+      { title: 'STT', key: 'number', width: 70 },
+      { title: 'Thứ tự', key: 'order', width: 120 },
+      { title: 'Tên', key: 'name' },
+      { title: 'Nền', key: 'background', width: 200 },
+      { title: 'Gồm', key: 'summary' },
+      { title: 'Hiện', key: 'isActive', width: 90 },
+      { title: '', key: 'actions', width: 150, align: 'right' },
+    ],
+    sort.active.value,
+  ),
+)
 
 const categoryName = computed(
   () => (id: string) => categories.value.find((category) => category.id === id)?.name ?? '—',
@@ -95,7 +102,17 @@ function remove(layout: DesignLayout) {
     description="Sắp xếp sẵn vị trí và cỡ từng món trên nền cho một bộ quà cụ thể (ví dụ 2 áo, 2 yếm, 1 mũ). Bộ nào không có mẫu khớp sẽ được xếp tự động."
   >
     <template #actions>
-      <Button @click="router.push('/thiet-ke/mau-sap-xep/tao-moi')">
+      <SortModeActions
+        :active="sort.active.value"
+        :loading="sort.loading.value"
+        :saving="sort.saving.value"
+        :dirty="sort.dirty.value"
+        :disabled="table.rows.value.length === 0"
+        @start="sort.start()"
+        @save="sort.save()"
+        @cancel="sort.cancel()"
+      />
+      <Button v-if="!sort.active.value" @click="router.push('/thiet-ke/mau-sap-xep/tao-moi')">
         <template #icon><Plus /></template>
         Thêm mẫu
       </Button>
@@ -110,21 +127,24 @@ function remove(layout: DesignLayout) {
     <Table
       row-key="id"
       :columns="columns"
-      :data-source="table.rows.value"
-      :loading="table.loading.value"
-      :pagination="table.pagination.value"
-      :scroll="{ x: 800 }"
+      :data-source="sort.active.value ? sort.rows.value : table.rows.value"
+      :loading="table.loading.value || sort.loading.value"
+      :pagination="sort.active.value ? false : table.pagination.value"
+      :scroll="{ x: 870 }"
       @change="table.onChange"
     >
       <template #bodyCell="{ column, record, index }">
-        <template v-if="column.key === 'order'">
+        <template v-if="column.key === 'number'">{{
+          sort.active.value ? index + 1 : table.rowNumber(index)
+        }}</template>
+        <template v-else-if="column.key === 'order'">
           <ReorderHandle
             :label="record.name"
             :first="index === 0"
-            :last="index === table.rows.value.length - 1"
-            :disabled="reorder.moving.value || table.page.value > 1"
-            @up="reorder.moveBy(index, -1)"
-            @down="reorder.moveBy(index, 1)"
+            :last="index === sort.rows.value.length - 1"
+            :disabled="sort.saving.value"
+            @up="sort.moveBy(index, -1)"
+            @down="sort.moveBy(index, 1)"
           />
         </template>
         <template v-else-if="column.key === 'background'">
@@ -136,6 +156,7 @@ function remove(layout: DesignLayout) {
         <template v-else-if="column.key === 'isActive'">
           <Switch
             :checked="record.isActive"
+            :disabled="sort.active.value"
             :aria-label="`Hiện ${record.name}`"
             @change="(value) => toggleActive(record as DesignLayout, Boolean(value))"
           />

@@ -58,5 +58,8 @@ export function usePagedTable<T>(
 
   const page = computed(() => state.page)
 
-  return { rows, loading, error, pagination, onChange, reload, page }
+  /** "STT" of the row at `index` on the current page, continuing across pages. */
+  const rowNumber = (index: number) => (state.page - 1) * state.pageSize + index + 1
+
+  return { rows, loading, error, pagination, onChange, reload, page, rowNumber }
 }

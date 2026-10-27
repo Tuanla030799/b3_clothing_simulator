@@ -1,40 +1,46 @@
 <script setup lang="ts">
-import { useTemplateRef } from 'vue'
+import { computed, useTemplateRef } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { Plus } from '@lucide/vue'
-import { Switch, Table, type TableColumnType } from 'ant-design-vue'
+import { Switch, Table } from 'ant-design-vue'
 import { Button, Flex, Image, Link, Typography } from '@lituta/ui'
 import { collectionsApi } from '../api/resources'
 import type { Collection } from '../api/types'
 import PageHeader from '../components/PageHeader.vue'
 import ReorderHandle from '../components/ReorderHandle.vue'
+import SortModeActions from '../components/SortModeActions.vue'
 import { useFeedback } from '../composables/useFeedback'
 import { usePagedTable } from '../composables/usePagedTable'
-import { useRowReorder } from '../composables/useRowReorder'
+import { sortModeColumns, useSortMode } from '../composables/useSortMode'
 
 const router = useRouter()
 const feedback = useFeedback()
 const table = usePagedTable((page, pageSize) => collectionsApi.list({ page, pageSize }), 100)
 void table.reload()
 
-// Drag and drop (or the up/down buttons); the API computes the order.
-const reorder = useRowReorder({
+// Sorting mode: rows move locally and "Lưu thứ tự" saves the whole order at once.
+const sort = useSortMode({
   container: useTemplateRef<HTMLElement>('tableWrap'),
-  rows: () => table.rows.value,
-  move: collectionsApi.move,
+  loadAll: collectionsApi.all,
+  save: collectionsApi.reorder,
   reload: () => table.reload(),
-  disabled: () => table.page.value > 1,
 })
 
-const columns: TableColumnType<Collection>[] = [
-  { title: 'Thứ tự', key: 'order', width: 120 },
-  { title: 'Ảnh', key: 'image', width: 90 },
-  { title: 'Bộ sưu tập', key: 'name' },
-  { title: 'Sản phẩm', dataIndex: 'productCount', key: 'productCount', width: 100 },
-  { title: 'Hiện', key: 'isActive', width: 90 },
-  { title: 'Nổi bật', key: 'isFeatured', width: 90 },
-  { title: '', key: 'actions', width: 140, align: 'right', fixed: 'right' },
-]
+const columns = computed(() =>
+  sortModeColumns<Collection>(
+    [
+      { title: 'STT', key: 'number', width: 70 },
+      { title: 'Thứ tự', key: 'order', width: 120 },
+      { title: 'Ảnh', key: 'image', width: 90 },
+      { title: 'Bộ sưu tập', key: 'name' },
+      { title: 'Sản phẩm', dataIndex: 'productCount', key: 'productCount', width: 100 },
+      { title: 'Hiện', key: 'isActive', width: 90 },
+      { title: 'Nổi bật', key: 'isFeatured', width: 90 },
+      { title: '', key: 'actions', width: 140, align: 'right', fixed: 'right' },
+    ],
+    sort.active.value,
+  ),
+)
 
 async function toggle(collection: Collection, field: 'isActive' | 'isFeatured', value: boolean) {
   try {
@@ -68,7 +74,17 @@ function remove(collection: Collection) {
     description="Nhóm sản phẩm theo mùa hoặc chủ đề. Bộ sưu tập nổi bật (và đang hiện) xuất hiện trên trang chủ."
   >
     <template #actions>
-      <Button @click="router.push('/bo-suu-tap/moi')">
+      <SortModeActions
+        :active="sort.active.value"
+        :loading="sort.loading.value"
+        :saving="sort.saving.value"
+        :dirty="sort.dirty.value"
+        :disabled="table.rows.value.length === 0"
+        @start="sort.start()"
+        @save="sort.save()"
+        @cancel="sort.cancel()"
+      />
+      <Button v-if="!sort.active.value" @click="router.push('/bo-suu-tap/moi')">
         <template #icon><Plus /></template>
         Thêm bộ sưu tập
       </Button>
@@ -83,21 +99,24 @@ function remove(collection: Collection) {
     <Table
       row-key="id"
       :columns="columns"
-      :data-source="table.rows.value"
-      :loading="table.loading.value"
-      :pagination="table.pagination.value"
-      :scroll="{ x: 720 }"
+      :data-source="sort.active.value ? sort.rows.value : table.rows.value"
+      :loading="table.loading.value || sort.loading.value"
+      :pagination="sort.active.value ? false : table.pagination.value"
+      :scroll="{ x: 790 }"
       @change="table.onChange"
     >
       <template #bodyCell="{ column, record, index }">
-        <template v-if="column.key === 'order'">
+        <template v-if="column.key === 'number'">{{
+          sort.active.value ? index + 1 : table.rowNumber(index)
+        }}</template>
+        <template v-else-if="column.key === 'order'">
           <ReorderHandle
             :label="record.name"
             :first="index === 0"
-            :last="index === table.rows.value.length - 1"
-            :disabled="reorder.moving.value || table.page.value > 1"
-            @up="reorder.moveBy(index, -1)"
-            @down="reorder.moveBy(index, 1)"
+            :last="index === sort.rows.value.length - 1"
+            :disabled="sort.saving.value"
+            @up="sort.moveBy(index, -1)"
+            @down="sort.moveBy(index, 1)"
           />
         </template>
         <template v-else-if="column.key === 'image'">

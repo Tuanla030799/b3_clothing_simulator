@@ -63,26 +63,66 @@ export function branchHeight(categories: readonly Category[], id: string): numbe
   )
 }
 
-export interface CategoryOption {
-  label: string
+/** A node of a category TreeSelect (CategoryTreeSelect). */
+export interface CategoryTreeNode {
   value: string
+  /** Name shown in the tree (children are indented under their parent). */
+  title: string
+  /** Full trail ("Áo › Áo thun") shown in the closed select. */
+  trail: string
+  /** Shown greyed out and not selectable. */
   disabled?: boolean
+  /** Not selectable but still expandable (a category with children for a product). */
+  selectable?: boolean
+  children?: CategoryTreeNode[]
+}
+
+interface NodeLook {
+  /** Leave the category (and its branch) out. */
+  skip?: boolean
+  disabled?: boolean
+  selectable?: boolean
+  /** Shown after the name, e.g. "(đang ẩn)". */
+  note?: string | null
+}
+
+function buildTree(
+  categories: readonly Category[],
+  look: (category: Category) => NodeLook,
+): CategoryTreeNode[] {
+  const build = (parentId: string | null): CategoryTreeNode[] =>
+    categories
+      .filter((category) => category.parentId === parentId)
+      .flatMap((category) => {
+        const { skip, disabled, selectable, note } = look(category)
+        if (skip) return []
+        const suffix = note ? ` (${note})` : ''
+        const children = build(category.id)
+        return [
+          {
+            value: category.id,
+            title: category.name + suffix,
+            trail: categoryTrail(categories, category.id) + suffix,
+            ...(disabled ? { disabled: true } : {}),
+            ...(selectable === false ? { selectable: false } : {}),
+            ...(children.length > 0 ? { children } : {}),
+          },
+        ]
+      })
+  return build(null)
 }
 
 /**
- * Select options in tree order, labelled with the full trail. With `leavesOnly` (a product's
- * category) categories that have children are listed but disabled.
+ * The category tree for a select, in the API order. With `leavesOnly` (a product's category)
+ * categories that have children can be expanded but not chosen. Hidden ones are marked.
  */
-export function categoryOptions(
+export function categoryTree(
   categories: readonly Category[],
   { leavesOnly = false }: { leavesOnly?: boolean } = {},
-): CategoryOption[] {
-  return categories.map((category) => ({
-    label:
-      categoryTrail(categories, category.id) +
-      (isShownToCustomers(categories, category.id) ? '' : ' (đang ẩn)'),
-    value: category.id,
-    ...(leavesOnly && category.childCount > 0 ? { disabled: true } : {}),
+): CategoryTreeNode[] {
+  return buildTree(categories, (category) => ({
+    ...(leavesOnly && category.childCount > 0 ? { selectable: false } : {}),
+    note: isShownToCustomers(categories, category.id) ? null : 'đang ẩn',
   }))
 }
 
@@ -90,34 +130,39 @@ export function categoryOptions(
 export const ROOT_VALUE = 'root'
 
 /**
- * Possible parents of a new category (`movingId` undefined) or of an existing one. A parent
- * cannot be the category or one of its descendants, must have no products, and the branch must
- * still fit in MAX_CATEGORY_DEPTH levels; the API enforces the same rules.
+ * Possible parents of a new category (`movingId` undefined) or of an existing one, as a tree
+ * after a "no parent" choice. The category and its descendants are left out; a parent must have
+ * no products and the branch must still fit in MAX_CATEGORY_DEPTH levels (others are disabled
+ * with the reason). The API enforces the same rules.
  */
-export function parentOptions(
-  categories: readonly Category[],
-  movingId?: string,
-): CategoryOption[] {
+export function parentTree(categories: readonly Category[], movingId?: string): CategoryTreeNode[] {
   const branch = movingId === undefined ? new Set<string>() : branchIds(categories, movingId)
   const height = movingId === undefined ? 1 : branchHeight(categories, movingId)
+  const root = 'Không có (danh mục gốc)'
   return [
-    { label: 'Không có (danh mục gốc)', value: ROOT_VALUE },
-    ...categories
-      .filter((category) => !branch.has(category.id))
-      .map((category) => {
-        const reason =
-          category.depth + height > MAX_CATEGORY_DEPTH
-            ? 'quá 3 cấp'
-            : category.productCount > 0
-              ? 'đang có sản phẩm'
-              : null
-        return {
-          label: categoryTrail(categories, category.id) + (reason ? ` (${reason})` : ''),
-          value: category.id,
-          ...(reason ? { disabled: true } : {}),
-        }
-      }),
+    { value: ROOT_VALUE, title: root, trail: root },
+    ...buildTree(categories, (category) => {
+      if (branch.has(category.id)) return { skip: true }
+      const reason =
+        category.depth + height > MAX_CATEGORY_DEPTH
+          ? 'quá 3 cấp'
+          : category.productCount > 0
+            ? 'đang có sản phẩm'
+            : null
+      return { disabled: reason !== null, note: reason }
+    }),
   ]
+}
+
+/** The value and the values of its ancestors in `tree` (root first), or [] when absent. */
+export function pathTo(tree: readonly CategoryTreeNode[], value: string | undefined): string[] {
+  if (value === undefined) return []
+  for (const node of tree) {
+    if (node.value === value) return [node.value]
+    const below = pathTo(node.children ?? [], value)
+    if (below.length > 0) return [node.value, ...below]
+  }
+  return []
 }
 
 /**
@@ -137,6 +182,62 @@ export function outlineNumbers(categories: readonly Node[]): Map<string, string>
     numbers.set(category.id, parent === undefined ? String(position) : `${parent}.${position}`)
   }
   return numbers
+}
+
+/** Children ids of every parent (null = the roots), in the order of the list. */
+export type SiblingOrder = Map<string | null, string[]>
+
+export function siblingOrder(categories: readonly Node[]): SiblingOrder {
+  const order: SiblingOrder = new Map()
+  for (const category of categories) {
+    order.set(category.parentId, [...(order.get(category.parentId) ?? []), category.id])
+  }
+  return order
+}
+
+/** The categories in tree order following `order` (parents before their children). */
+export function flattenTree<T extends Node>(categories: readonly T[], order: SiblingOrder): T[] {
+  const index = byId(categories)
+  const result: T[] = []
+  const visit = (parentId: string | null) => {
+    for (const id of order.get(parentId) ?? []) {
+      const category = index.get(id)
+      if (!category) continue
+      result.push(category)
+      visit(id)
+    }
+  }
+  visit(null)
+  return result
+}
+
+/** A copy of `order` with the category moved one place up (-1) or down (+1) among its siblings. */
+export function moveSibling(
+  order: SiblingOrder,
+  parentId: string | null,
+  id: string,
+  delta: number,
+): SiblingOrder {
+  const siblings = order.get(parentId) ?? []
+  const from = siblings.indexOf(id)
+  const to = from + delta
+  const next = new Map(order)
+  if (from === -1 || to < 0 || to >= siblings.length) return next
+  const moved = [...siblings]
+  moved.splice(from, 1)
+  moved.splice(to, 0, id)
+  next.set(parentId, moved)
+  return next
+}
+
+/** Parents whose children are in a different order in `next` than in `initial`. */
+export function changedGroups(initial: SiblingOrder, next: SiblingOrder): (string | null)[] {
+  return [...next]
+    .filter(([parentId, ids]) => {
+      const before = initial.get(parentId) ?? []
+      return ids.some((id, i) => before[i] !== id)
+    })
+    .map(([parentId]) => parentId)
 }
 
 /** Vietnamese text for the reason codes the API puts in a 409 (`errors[0].message`). */

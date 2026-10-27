@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { reactive, ref, useTemplateRef } from 'vue'
+import { computed, reactive, ref, useTemplateRef } from 'vue'
 import { Plus } from '@lucide/vue'
-import { Input, Modal, Switch, Table, Textarea, type TableColumnType } from 'ant-design-vue'
+import { Input, Modal, Switch, Table, Textarea } from 'ant-design-vue'
 import { Button, Flex, FormField, Image, Typography } from '@lituta/ui'
 import { fieldErrors } from '../api/httpClient'
 import { bannersApi } from '../api/resources'
@@ -9,32 +9,38 @@ import type { Banner } from '../api/types'
 import ImageUploadField from '../components/ImageUploadField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import ReorderHandle from '../components/ReorderHandle.vue'
+import SortModeActions from '../components/SortModeActions.vue'
 import { useFeedback } from '../composables/useFeedback'
 import { usePagedTable } from '../composables/usePagedTable'
-import { useRowReorder } from '../composables/useRowReorder'
+import { sortModeColumns, useSortMode } from '../composables/useSortMode'
 import { linkUrlProblem } from '../utils/linkUrl'
 
 const feedback = useFeedback()
 const table = usePagedTable((page, pageSize) => bannersApi.list({ page, pageSize }), 100)
 void table.reload()
 
-// Drag and drop (or the up/down buttons); the API computes the order.
-const reorder = useRowReorder({
+// Sorting mode: rows move locally and "Lưu thứ tự" saves the whole order at once.
+const sort = useSortMode({
   container: useTemplateRef<HTMLElement>('tableWrap'),
-  rows: () => table.rows.value,
-  move: bannersApi.move,
+  loadAll: bannersApi.all,
+  save: bannersApi.reorder,
   reload: () => table.reload(),
-  disabled: () => table.page.value > 1,
 })
 
-const columns: TableColumnType<Banner>[] = [
-  { title: 'Thứ tự', key: 'order', width: 120 },
-  { title: 'Ảnh', key: 'image', width: 150 },
-  { title: 'Tiêu đề', key: 'title' },
-  { title: 'Liên kết', key: 'linkUrl' },
-  { title: 'Hiện', key: 'isActive', width: 90 },
-  { title: '', key: 'actions', width: 150, align: 'right' },
-]
+const columns = computed(() =>
+  sortModeColumns<Banner>(
+    [
+      { title: 'STT', key: 'number', width: 70 },
+      { title: 'Thứ tự', key: 'order', width: 120 },
+      { title: 'Ảnh', key: 'image', width: 150 },
+      { title: 'Tiêu đề', key: 'title' },
+      { title: 'Liên kết', key: 'linkUrl' },
+      { title: 'Hiện', key: 'isActive', width: 90 },
+      { title: '', key: 'actions', width: 150, align: 'right' },
+    ],
+    sort.active.value,
+  ),
+)
 
 const open = ref(false)
 const editing = ref<Banner | null>(null)
@@ -126,7 +132,17 @@ function remove(banner: Banner) {
     description="Banner mới mặc định ẩn. Liên kết nội bộ dùng đường dẫn của trang khách, ví dụ /bo-suu-tap/giang-sinh."
   >
     <template #actions>
-      <Button @click="openForm(null)">
+      <SortModeActions
+        :active="sort.active.value"
+        :loading="sort.loading.value"
+        :saving="sort.saving.value"
+        :dirty="sort.dirty.value"
+        :disabled="table.rows.value.length === 0"
+        @start="sort.start()"
+        @save="sort.save()"
+        @cancel="sort.cancel()"
+      />
+      <Button v-if="!sort.active.value" @click="openForm(null)">
         <template #icon><Plus /></template>
         Thêm banner
       </Button>
@@ -141,21 +157,24 @@ function remove(banner: Banner) {
     <Table
       row-key="id"
       :columns="columns"
-      :data-source="table.rows.value"
-      :loading="table.loading.value"
-      :pagination="table.pagination.value"
-      :scroll="{ x: 760 }"
+      :data-source="sort.active.value ? sort.rows.value : table.rows.value"
+      :loading="table.loading.value || sort.loading.value"
+      :pagination="sort.active.value ? false : table.pagination.value"
+      :scroll="{ x: 830 }"
       @change="table.onChange"
     >
       <template #bodyCell="{ column, record, index }">
-        <template v-if="column.key === 'order'">
+        <template v-if="column.key === 'number'">{{
+          sort.active.value ? index + 1 : table.rowNumber(index)
+        }}</template>
+        <template v-else-if="column.key === 'order'">
           <ReorderHandle
             :label="record.title"
             :first="index === 0"
-            :last="index === table.rows.value.length - 1"
-            :disabled="reorder.moving.value || table.page.value > 1"
-            @up="reorder.moveBy(index, -1)"
-            @down="reorder.moveBy(index, 1)"
+            :last="index === sort.rows.value.length - 1"
+            :disabled="sort.saving.value"
+            @up="sort.moveBy(index, -1)"
+            @down="sort.moveBy(index, 1)"
           />
         </template>
         <template v-else-if="column.key === 'image'">
@@ -178,6 +197,7 @@ function remove(banner: Banner) {
         <template v-else-if="column.key === 'isActive'">
           <Switch
             :checked="record.isActive"
+            :disabled="sort.active.value"
             :aria-label="`Hiện banner ${record.title}`"
             @change="(value) => toggleActive(record as Banner, Boolean(value))"
           />

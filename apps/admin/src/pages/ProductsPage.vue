@@ -9,7 +9,8 @@ import type { Category, ProductListItem } from '../api/types'
 import PageHeader from '../components/PageHeader.vue'
 import { useFeedback } from '../composables/useFeedback'
 import { usePagedTable } from '../composables/usePagedTable'
-import { categoryOptions } from '../utils/categoryTree'
+import CategoryTreeSelect from '../components/CategoryTreeSelect.vue'
+import { categoryTree } from '../utils/categoryTree'
 import { formatDateTime, formatPrice } from '../utils/format'
 
 const router = useRouter()
@@ -25,10 +26,10 @@ const filters = reactive<{ q: string; categoryId: string; active: 'all' | 'true'
   categoryId: 'all',
   active: 'all',
 })
-const categoryFilterOptions = computed(() => [
-  { label: 'Tất cả danh mục', value: 'all' },
+const categoryFilterTree = computed(() => [
+  { value: 'all', title: 'Tất cả danh mục', trail: 'Tất cả danh mục' },
   // A parent category lists the products of its whole branch.
-  ...categoryOptions(categories.value).map(({ label, value }) => ({ label, value })),
+  ...categoryTree(categories.value),
 ])
 const activeOptions = [
   { label: 'Tất cả trạng thái', value: 'all' },
@@ -52,6 +53,7 @@ watch(
 )
 
 const columns: TableColumnType<ProductListItem>[] = [
+  { title: 'STT', key: 'number', width: 70 },
   { title: 'Sản phẩm', key: 'name' },
   { title: 'Danh mục', key: 'category' },
   { title: 'Giá', key: 'price', align: 'right' },
@@ -142,10 +144,9 @@ function remove(item: ProductListItem) {
       </form>
     </Col>
     <Col :xs="24" :sm="12" :lg="8" :xl="6">
-      <Select
+      <CategoryTreeSelect
         v-model="filters.categoryId"
-        size="small"
-        :options="categoryFilterOptions"
+        :tree-data="categoryFilterTree"
         aria-label="Lọc danh mục"
       />
     </Col>
@@ -169,11 +170,12 @@ function remove(item: ProductListItem) {
     :data-source="table.rows.value"
     :loading="table.loading.value"
     :pagination="table.pagination.value"
-    :scroll="{ x: 1140 }"
+    :scroll="{ x: 1210 }"
     @change="table.onChange"
   >
-    <template #bodyCell="{ column, record }">
-      <template v-if="column.key === 'name'">
+    <template #bodyCell="{ column, record, index }">
+      <template v-if="column.key === 'number'">{{ table.rowNumber(index) }}</template>
+      <template v-else-if="column.key === 'name'">
         <Link :as="RouterLink" :to="`/san-pham/${record.id}`">{{ record.name }}</Link>
         <Typography variant="caption">{{ record.slug }}</Typography>
       </template>

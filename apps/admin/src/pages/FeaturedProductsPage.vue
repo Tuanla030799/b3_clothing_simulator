@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { useTemplateRef } from 'vue'
+import { computed, useTemplateRef } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { Table, Tag, type TableColumnType } from 'ant-design-vue'
+import { Table, Tag } from 'ant-design-vue'
 import { Button, EmptyState, Link, Typography } from '@lituta/ui'
 import { productsApi } from '../api/resources'
 import type { ProductListItem } from '../api/types'
 import PageHeader from '../components/PageHeader.vue'
 import ReorderHandle from '../components/ReorderHandle.vue'
+import SortModeActions from '../components/SortModeActions.vue'
 import { useFeedback } from '../composables/useFeedback'
 import { usePagedTable } from '../composables/usePagedTable'
-import { useRowReorder } from '../composables/useRowReorder'
+import { sortModeColumns, useSortMode } from '../composables/useSortMode'
 import { formatPrice } from '../utils/format'
 
 /*
@@ -26,21 +27,28 @@ const table = usePagedTable(
 )
 void table.reload()
 
-const reorder = useRowReorder({
+// Sorting mode: rows move locally and "Lưu thứ tự" saves the whole order at once.
+const sort = useSortMode({
   container: useTemplateRef<HTMLElement>('tableWrap'),
-  rows: () => table.rows.value,
-  move: productsApi.moveFeatured,
+  loadAll: productsApi.allFeatured,
+  save: productsApi.reorderFeatured,
   reload: () => table.reload(),
 })
 
-const columns: TableColumnType<ProductListItem>[] = [
-  { title: 'Thứ tự', key: 'order', width: 120 },
-  { title: 'Sản phẩm', key: 'name' },
-  { title: 'Danh mục', key: 'category', width: 160 },
-  { title: 'Giá', key: 'price', width: 130, align: 'right' },
-  { title: 'Trang khách', key: 'public', width: 130 },
-  { title: '', key: 'actions', width: 130, align: 'right' },
-]
+const columns = computed(() =>
+  sortModeColumns<ProductListItem>(
+    [
+      { title: 'STT', key: 'number', width: 70 },
+      { title: 'Thứ tự', key: 'order', width: 120 },
+      { title: 'Sản phẩm', key: 'name' },
+      { title: 'Danh mục', key: 'category', width: 160 },
+      { title: 'Giá', key: 'price', width: 130, align: 'right' },
+      { title: 'Trang khách', key: 'public', width: 130 },
+      { title: '', key: 'actions', width: 130, align: 'right' },
+    ],
+    sort.active.value,
+  ),
+)
 
 async function unfeature(product: ProductListItem) {
   try {
@@ -58,7 +66,20 @@ async function unfeature(product: ProductListItem) {
     title="Sản phẩm nổi bật"
     :description="`Hiện ở mục “Sản phẩm nổi bật” trang chủ theo thứ tự dưới đây (trang chủ lấy 6 sản phẩm đầu). Đang có ${table.rows.value.length}/${MAX_FEATURED}.`"
     :back="{ to: '/san-pham', label: 'Danh sách sản phẩm' }"
-  />
+  >
+    <template #actions>
+      <SortModeActions
+        :active="sort.active.value"
+        :loading="sort.loading.value"
+        :saving="sort.saving.value"
+        :dirty="sort.dirty.value"
+        :disabled="table.rows.value.length === 0"
+        @start="sort.start()"
+        @save="sort.save()"
+        @cancel="sort.cancel()"
+      />
+    </template>
+  </PageHeader>
 
   <Typography v-if="table.error.value" role="alert" class="mb-4 text-destructive">
     {{ table.error.value }}
@@ -78,20 +99,23 @@ async function unfeature(product: ProductListItem) {
     <Table
       row-key="id"
       :columns="columns"
-      :data-source="table.rows.value"
-      :loading="table.loading.value"
+      :data-source="sort.active.value ? sort.rows.value : table.rows.value"
+      :loading="table.loading.value || sort.loading.value"
       :pagination="false"
-      :scroll="{ x: 760 }"
+      :scroll="{ x: 830 }"
     >
       <template #bodyCell="{ column, record, index }">
-        <template v-if="column.key === 'order'">
+        <template v-if="column.key === 'number'">{{
+          sort.active.value ? index + 1 : table.rowNumber(index)
+        }}</template>
+        <template v-else-if="column.key === 'order'">
           <ReorderHandle
             :label="record.name"
             :first="index === 0"
-            :last="index === table.rows.value.length - 1"
-            :disabled="reorder.moving.value"
-            @up="reorder.moveBy(index, -1)"
-            @down="reorder.moveBy(index, 1)"
+            :last="index === sort.rows.value.length - 1"
+            :disabled="sort.saving.value"
+            @up="sort.moveBy(index, -1)"
+            @down="sort.moveBy(index, 1)"
           />
         </template>
         <template v-else-if="column.key === 'name'">

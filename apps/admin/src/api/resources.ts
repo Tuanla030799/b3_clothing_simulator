@@ -50,8 +50,14 @@ export const categoriesApi = {
   /** Every category, flat in tree order (parents before their children). */
   all: () => http.getAll<Category>('admin/categories'),
   /**
-   * Puts the category right after the sibling `afterId` (null = first); the API computes the
-   * order. With `parentId` (null = root) the branch moves under that parent first.
+   * Saves the order of one group of siblings at once: every child of `parentId` (null = roots),
+   * first = top (409 LIST_CHANGED if the group changed).
+   */
+  reorder: (parentId: string | null, ids: string[]) =>
+    http.put('admin/categories/order', { parentId, ids }),
+  /**
+   * Moves the category (and its branch) under `parentId` (null = root), right after the sibling
+   * `afterId` (null = first). The admin uses it to change the parent.
    */
   move: (categoryId: string, afterId: string | null, parentId?: string | null) =>
     http.patch(`admin/categories/${id(categoryId)}/position`, {
@@ -74,9 +80,11 @@ export const productsApi = {
     } = {},
   ) => http.get<Paged<ProductListItem>>('admin/products', { query }),
   get: (productId: string) => http.get<Product>(`admin/products/${id(productId)}`),
-  /** Featured products only (the other lists are newest first). */
-  moveFeatured: (productId: string, afterId: string | null) =>
-    http.patch(`admin/products/${id(productId)}/position`, { afterId }),
+  /** Every featured product, in their order. */
+  allFeatured: () =>
+    http.getAll<ProductListItem>('admin/products', { query: { isFeatured: true } }),
+  /** Saves the featured order at once: every featured id, first = top (409 LIST_CHANGED). */
+  reorderFeatured: (ids: string[]) => http.put('admin/products/featured/order', { ids }),
   create: (body: ProductInput & ProductCreateExtras) => http.post<Product>('admin/products', body),
   update: (
     productId: string,
@@ -132,9 +140,8 @@ export const designAssetsApi = (kind: DesignAssetKind) => ({
   list: (query: PageQuery & { q?: string; isActive?: boolean } = {}) =>
     http.get<Paged<DesignAsset>>(`admin/${kind}`, { query }),
   all: () => http.getAll<DesignAsset>(`admin/${kind}`),
-  /** Drag and drop: puts the row right after `afterId` (null = first); the API computes the order. */
-  move: (assetId: string, afterId: string | null) =>
-    http.patch(`admin/${kind}/${id(assetId)}/position`, { afterId }),
+  /** Saves the whole order at once: every id, first = top (409 LIST_CHANGED if it changed). */
+  reorder: (ids: string[]) => http.put(`admin/${kind}/order`, { ids }),
   create: (body: DesignAssetInput) => http.post<DesignAsset>(`admin/${kind}`, body),
   update: (assetId: string, body: Partial<DesignAssetInput>) =>
     http.patch<DesignAsset>(`admin/${kind}/${id(assetId)}`, body),
@@ -145,9 +152,9 @@ export const designLayoutsApi = {
   list: (query: PageQuery & { backgroundId?: string; isActive?: boolean } = {}) =>
     http.get<Paged<DesignLayout>>('admin/design-layouts', { query }),
   get: (layoutId: string) => http.get<DesignLayout>(`admin/design-layouts/${id(layoutId)}`),
-  /** Drag and drop: puts the row right after `afterId` (null = first); the API computes the order. */
-  move: (layoutId: string, afterId: string | null) =>
-    http.patch(`admin/design-layouts/${id(layoutId)}/position`, { afterId }),
+  all: () => http.getAll<DesignLayout>('admin/design-layouts'),
+  /** Saves the whole order at once: every id, first = top (409 LIST_CHANGED if it changed). */
+  reorder: (ids: string[]) => http.put('admin/design-layouts/order', { ids }),
   create: (body: DesignLayoutInput) => http.post<DesignLayout>('admin/design-layouts', body),
   update: (layoutId: string, body: Partial<DesignLayoutInput>) =>
     http.patch<DesignLayout>(`admin/design-layouts/${id(layoutId)}`, body),
@@ -161,9 +168,9 @@ export const bannersApi = {
   update: (bannerId: string, body: Partial<BannerInput>) =>
     http.patch<Banner>(`admin/banners/${id(bannerId)}`, body),
   remove: (bannerId: string) => http.delete(`admin/banners/${id(bannerId)}`),
-  /** Drag and drop: puts the row right after `afterId` (null = first); the API computes the order. */
-  move: (bannerId: string, afterId: string | null) =>
-    http.patch(`admin/banners/${id(bannerId)}/position`, { afterId }),
+  all: () => http.getAll<Banner>('admin/banners'),
+  /** Saves the whole order at once: every id, first = top (409 LIST_CHANGED if it changed). */
+  reorder: (ids: string[]) => http.put('admin/banners/order', { ids }),
 }
 
 export const collectionsApi = {
@@ -174,9 +181,9 @@ export const collectionsApi = {
   update: (collectionId: string, body: Partial<CollectionInput>) =>
     http.patch<Collection>(`admin/collections/${id(collectionId)}`, body),
   remove: (collectionId: string) => http.delete(`admin/collections/${id(collectionId)}`),
-  /** Drag and drop: puts the row right after `afterId` (null = first); the API computes the order. */
-  move: (collectionId: string, afterId: string | null) =>
-    http.patch(`admin/collections/${id(collectionId)}/position`, { afterId }),
+  all: () => http.getAll<Collection>('admin/collections'),
+  /** Saves the whole order at once: every id, first = top (409 LIST_CHANGED if it changed). */
+  reorder: (ids: string[]) => http.put('admin/collections/order', { ids }),
 
   members: (collectionId: string, query: PageQuery = {}) =>
     http.get<Paged<CollectionMember>>(`admin/collections/${id(collectionId)}/products`, {
@@ -185,11 +192,11 @@ export const collectionsApi = {
   /** The new member goes last. */
   addMember: (collectionId: string, productId: string) =>
     http.post<CollectionMember>(`admin/collections/${id(collectionId)}/products`, { productId }),
-  /** Drag and drop inside the collection (`afterId` is another member's product id). */
-  moveMember: (collectionId: string, productId: string, afterId: string | null) =>
-    http.patch(`admin/collections/${id(collectionId)}/products/${id(productId)}/position`, {
-      afterId,
-    }),
+  allMembers: (collectionId: string) =>
+    http.getAll<CollectionMember>(`admin/collections/${id(collectionId)}/products`),
+  /** Saves the whole member order at once (product ids, first = top). */
+  reorderMembers: (collectionId: string, productIds: string[]) =>
+    http.put(`admin/collections/${id(collectionId)}/products/order`, { ids: productIds }),
   removeMember: (collectionId: string, productId: string) =>
     http.delete(`admin/collections/${id(collectionId)}/products/${id(productId)}`),
 }

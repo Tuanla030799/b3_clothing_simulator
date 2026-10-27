@@ -14,7 +14,8 @@ import { useLeaveGuard } from '../composables/useLeaveGuard'
 import LayoutCanvas, { type SlotPreview } from '../features/designer/LayoutCanvas.vue'
 import { measureVisible, snapSlot, visibleAspect } from '../features/designer/layoutPreview'
 import { round4 } from '../features/designer/zoneGeometry'
-import { categoryOptions as treeOptions } from '../utils/categoryTree'
+import CategoryTreeSelect from '../components/CategoryTreeSelect.vue'
+import { categoryTree } from '../utils/categoryTree'
 
 /*
  * Create or edit a set layout: pick a background, then add one rectangle per item and drag it to
@@ -96,7 +97,7 @@ const backgroundOptions = computed(() =>
   })),
 )
 // Any level: a rectangle of a parent category takes items of its whole branch.
-const categoryOptions = computed(() => treeOptions(categories.value))
+const categoryTreeData = computed(() => categoryTree(categories.value))
 const categoryName = (id: string) =>
   categories.value.find((category) => category.id === id)?.name ?? 'Chưa chọn danh mục'
 
@@ -426,11 +427,10 @@ function reset() {
                       >
                         {{ index + 1 }}
                       </Button>
-                      <Select
+                      <CategoryTreeSelect
                         v-model="slot.categoryId"
-                        :options="categoryOptions"
+                        :tree-data="categoryTreeData"
                         :aria-label="`Danh mục của vị trí ${index + 1}`"
-                        size="small"
                         @update:model-value="setCategory(slot)"
                       />
                       <Button
