@@ -120,6 +120,25 @@ export function parentOptions(
   ]
 }
 
+/**
+ * Outline numbers in tree order: "1", "1.1", "1.1.2"… Each number is the position among siblings
+ * (in the order given), prefixed by the parent's number. Computed on the full list so a filtered
+ * view keeps the same numbers.
+ */
+export function outlineNumbers(categories: readonly Node[]): Map<string, string> {
+  const numbers = new Map<string, string>()
+  const counters = new Map<string | null, number>()
+  // Tree order lists a parent before its children, so the parent's number is always known.
+  for (const category of categories) {
+    const parent = category.parentId === null ? undefined : numbers.get(category.parentId)
+    const key = parent === undefined ? null : category.parentId
+    const position = (counters.get(key) ?? 0) + 1
+    counters.set(key, position)
+    numbers.set(category.id, parent === undefined ? String(position) : `${parent}.${position}`)
+  }
+  return numbers
+}
+
 /** Vietnamese text for the reason codes the API puts in a 409 (`errors[0].message`). */
 const TREE_ERRORS: Record<string, string> = {
   CATEGORY_DEPTH_EXCEEDED: 'Danh mục chỉ lồng tối đa 3 cấp.',

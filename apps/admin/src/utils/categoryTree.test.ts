@@ -6,6 +6,7 @@ import {
   categoryOptions,
   categoryTrail,
   isShownToCustomers,
+  outlineNumbers,
   parentOptions,
   ROOT_VALUE,
   treeErrorText,
@@ -80,6 +81,21 @@ describe('category tree helpers', () => {
     expect(enabled('thun')).toEqual([ROOT_VALUE, 'ao', 'quan'])
     expect(parentOptions(tree, 'thun').map((o) => o.value)).not.toContain('co-tron')
     expect(enabled('ao')).toEqual([ROOT_VALUE])
+  })
+
+  it('numbers the tree like an outline', () => {
+    expect(Object.fromEntries(outlineNumbers(tree))).toEqual({
+      ao: '1',
+      thun: '1.1',
+      'co-tron': '1.1.1',
+      len: '1.2',
+      quan: '2',
+    })
+    // A child whose parent is not in the list is numbered as a root.
+    expect(Object.fromEntries(outlineNumbers([tree[1]!, tree[4]!]))).toEqual({
+      thun: '1',
+      quan: '2',
+    })
   })
 
   it('translates the API reason codes', () => {

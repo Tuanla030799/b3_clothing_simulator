@@ -12,6 +12,7 @@ import { useFeedback } from '../composables/useFeedback'
 import {
   categoryTrail,
   isShownToCustomers,
+  outlineNumbers,
   MAX_CATEGORY_DEPTH,
   parentOptions,
   ROOT_VALUE,
@@ -60,6 +61,9 @@ const rows = computed(() => {
   )
 })
 
+// "1", "1.1", "1.1.2": numbered on the whole tree, so filtering keeps each category's number.
+const numbers = computed(() => outlineNumbers(categories.value))
+
 const siblingsOf = (category: Category) =>
   categories.value.filter((other) => other.parentId === category.parentId)
 
@@ -82,6 +86,7 @@ async function moveBy(category: Category, delta: number) {
 
 const columns: TableColumnType<Category>[] = [
   { title: 'Thứ tự', key: 'order', width: 110 },
+  { title: 'STT', key: 'number', width: 80 },
   { title: 'Tên', key: 'name' },
   { title: 'Đường dẫn', dataIndex: 'path', key: 'path' },
   { title: 'Sản phẩm', dataIndex: 'productCount', key: 'productCount', width: 100 },
@@ -252,7 +257,7 @@ function remove(category: Category) {
     :data-source="rows"
     :loading="loading"
     :pagination="false"
-    :scroll="{ x: 880 }"
+    :scroll="{ x: 960 }"
   >
     <template #bodyCell="{ column, record }">
       <template v-if="column.key === 'order'">
@@ -265,6 +270,9 @@ function remove(category: Category) {
           @up="moveBy(record as Category, -1)"
           @down="moveBy(record as Category, 1)"
         />
+      </template>
+      <template v-else-if="column.key === 'number'">
+        <span class="tabular-nums">{{ numbers.get(record.id) }}</span>
       </template>
       <template v-else-if="column.key === 'name'">
         <span v-if="filtering">{{ categoryTrail(categories, record.id) }}</span>
