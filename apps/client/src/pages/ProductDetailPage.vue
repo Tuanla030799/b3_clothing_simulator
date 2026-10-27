@@ -6,12 +6,23 @@ import { Button, Col, Container, EmptyState, Flex, Image, Link, Row, Typography 
 import { publicCatalog } from '../api/publicCatalog'
 import { useRemoteData } from '../api/useRemoteData'
 import { useCart } from '../features/cart/cart'
+import { categoryRoute, lineage } from '../features/catalog/categoryTree'
 import { formatPrice } from '../features/catalog/formatPrice'
 
 const props = defineProps<{ slug: string }>()
 
 const router = useRouter()
 const product = useRemoteData((signal) => publicCatalog.product(props.slug, signal))
+const categories = useRemoteData((signal) => publicCatalog.categories(signal))
+
+// "Áo › Áo thun": the category and its ancestors, each linking to its product list. Until the
+// category list loads (or if it fails) only the product's own category is shown.
+const categoryTrail = computed(() => {
+  const category = product.data.value?.category
+  if (!category) return []
+  const chain = lineage(categories.data.value ?? [], category.id)
+  return chain.length > 0 ? chain : [category]
+})
 // The same page component is reused when only the slug changes.
 watch(
   () => props.slug,
@@ -124,7 +135,16 @@ async function addToCart() {
         <Col :xs="24" :md="12">
           <Flex vertical gap="large">
             <Flex vertical gap="small">
-              <Typography variant="caption">{{ product.data.value.category.name }}</Typography>
+              <nav aria-label="Danh mục">
+                <Flex as="ol" wrap align="center" :gap="4" class="text-sm text-muted-foreground">
+                  <li v-for="(category, index) in categoryTrail" :key="category.id">
+                    <span v-if="index > 0" aria-hidden="true">› </span>
+                    <Link :as="RouterLink" :to="categoryRoute(category.path)">{{
+                      category.name
+                    }}</Link>
+                  </li>
+                </Flex>
+              </nav>
               <Typography as="h1" variant="title">{{ product.data.value.name }}</Typography>
               <Typography variant="subheading" class="text-primary">
                 {{ formatPrice(product.data.value.price) }}

@@ -13,6 +13,7 @@ import { useFeedback } from '../composables/useFeedback'
 import { useLeaveGuard } from '../composables/useLeaveGuard'
 import ColorSwatch from '../features/catalog/ColorSwatch.vue'
 import ProductForm from '../features/catalog/ProductForm.vue'
+import { isShownToCustomers } from '../utils/categoryTree'
 import { formatDateTime, formatPrice } from '../utils/format'
 
 const props = defineProps<{ id: string }>()
@@ -44,15 +45,18 @@ categoriesApi
 const activeColors = computed(
   () => product.value?.colors.filter((color) => color.isActive).length ?? 0,
 )
-const categoryActive = computed(
-  () => categories.value.find((category) => category.id === product.value?.category.id)?.isActive,
+// The category and every ancestor must be active (undefined while the categories load).
+const categoryActive = computed(() =>
+  product.value === null || categories.value.length === 0
+    ? undefined
+    : isShownToCustomers(categories.value, product.value.category.id),
 )
 // What the API checks before a product can be activated.
 const publishChecks = computed(() => [
   {
     label:
       categoryActive.value === false
-        ? `Danh mục “${product.value?.category.name}” đang ẩn`
+        ? `Danh mục “${product.value?.category.name}” (hoặc danh mục cha) đang ẩn`
         : 'Danh mục đang hiện',
     ok: categoryActive.value !== false,
   },

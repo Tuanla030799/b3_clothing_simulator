@@ -14,10 +14,16 @@ export interface FileRef {
   height: number
 }
 
+/** A visible category; the tree is at most 3 levels and only leaves hold products. */
 export interface PublicCategory {
   id: string
+  /** Null for a root. */
+  parentId: string | null
   name: string
+  /** Unique among siblings. */
   slug: string
+  /** Slugs of the ancestors and the category joined by "/" ("ao/ao-thun"): the URL key. */
+  path: string
 }
 
 export interface PublicColorSummary {
@@ -142,7 +148,8 @@ export interface PublicDesignerConfig {
 // Type aliases (not interfaces) so they are assignable to the client's query record.
 export type ProductListQuery = {
   q?: string
-  categorySlug?: string
+  /** Products of this category and of its descendants ("ao/ao-thun"). */
+  categoryPath?: string
   /** Featured products only, in the order the admin set (home page). */
   featured?: boolean
 }
@@ -151,6 +158,7 @@ export type PageQuery = { page?: number; pageSize?: number }
 
 export function createPublicCatalog(client: ApiClient = api) {
   return {
+    /** Visible categories, flat in tree order (parents before their children). */
     categories: (signal?: AbortSignal) =>
       client.get<PublicCategory[]>('public/categories', { signal }),
     /** One page of public products. */

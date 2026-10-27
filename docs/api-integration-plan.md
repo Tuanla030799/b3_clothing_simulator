@@ -57,7 +57,9 @@ Backend: repo `b3_clothing_simulator_api` (NestJS). Hợp đồng chi tiết n�
 - Trang chủ: bộ sưu tập nổi bật (`public/collections?featured=true`), sản phẩm nổi bật dùng chung
   `ProductCard` (có giá). Các khối tĩnh giữ nguyên: thanh thông báo, footer, mạng xã hội, cam kết,
   quy trình, đánh giá.
-- `/san-pham`: lọc theo danh mục, tìm theo tên, giữ trên URL (`?danh-muc=&q=`), "Xem thêm" 24 món
+- `/san-pham`: lọc theo danh mục, tìm theo tên, giữ trên URL, "Xem thêm" 24 món. Danh mục dạng cây
+  (API `docs/category-tree-contract.md`): lọc bằng `/danh-muc/<path>` (`categoryPath`, cả nhánh);
+  link cũ `?danh-muc=` chuyển hướng. "Xem thêm" 24 món
   mỗi trang. `/san-pham/:slug`: màu, size (chỉ hiển thị), giá, mô tả, nút "Thêm vào giỏ hàng".
 - `/bo-suu-tap` (mọi bộ sưu tập đang bật) và `/bo-suu-tap/:slug` (mô tả + sản phẩm, "Xem thêm").
 - Giá: `Intl.NumberFormat('vi-VN', VND, currencyDisplay: 'code')` → "199.000 VND"; hiển thị ở mọi thẻ

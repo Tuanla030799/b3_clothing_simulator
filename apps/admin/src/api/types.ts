@@ -18,12 +18,22 @@ export interface UploadedFile extends FileRef {
   expiresAt: string | null
 }
 
+/** A node of the category tree (at most 3 levels; only leaves hold products). */
 export interface Category {
   id: string
+  /** Null for a root. */
+  parentId: string | null
   name: string
+  /** Unique among siblings. */
   slug: string
+  /** Slugs of the ancestors and the category joined by "/" (server-computed). */
+  path: string
+  /** 1 for a root, at most 3. */
+  depth: number
   isActive: boolean
   sortOrder: number
+  productCount: number
+  childCount: number
   createdAt: string
   updatedAt: string
 }
@@ -32,6 +42,8 @@ export interface CategoryInput {
   name: string
   slug: string
   isActive?: boolean
+  /** Create only; the parent of an existing category changes through `categoriesApi.move`. */
+  parentId?: string | null
 }
 
 /** A color of the fixed palette (GET /admin/color-palette); `multi` has no swatch. */
@@ -77,7 +89,7 @@ export interface ProductListItem {
   /** Home page featured products (at most 24), ordered by drag and drop. */
   isFeatured: boolean
   sortOrder: number
-  category: { id: string; name: string; slug: string }
+  category: { id: string; name: string; slug: string; path: string }
   colorCount: number
   sizeCount: number
   updatedAt: string

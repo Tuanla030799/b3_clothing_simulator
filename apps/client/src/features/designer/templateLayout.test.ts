@@ -29,6 +29,48 @@ describe('matchTemplate', () => {
   })
 })
 
+describe('templates of parent categories', () => {
+  // apparel > shirt > tee, apparel > bib.
+  const tree = [
+    { id: 'apparel', parentId: null },
+    { id: 'shirt', parentId: 'apparel' },
+    { id: 'tee', parentId: 'shirt' },
+    { id: 'bib', parentId: 'apparel' },
+  ]
+
+  it('lets a slot take any item of its branch', () => {
+    const t = template({ slots: [slot('apparel', 0.1), slot('apparel', 0.4), slot('bib', 0.7)] })
+    expect(matchTemplate([t], 'bg', cats('tee', 'bib', 'shirt'), tree)).toBe(t)
+    expect(matchTemplate([t], 'bg', cats('tee', 'tee', 'tee'), tree)).toBeNull()
+    // Without the tree a parent slot only takes items of exactly that category.
+    expect(matchTemplate([t], 'bg', cats('tee', 'bib', 'shirt'))).toBeNull()
+  })
+
+  it("fills the deepest slots first so a broad slot does not take a narrow slot's item", () => {
+    const t = template({ slots: [slot('apparel', 0.1), slot('bib', 0.4)] })
+    // In selection order the bib comes first; the bib slot still gets it.
+    const items = [
+      { instanceId: 'b', categoryId: 'bib', aspectRatio: 1, displayScale: 1, priority: 0 },
+      { instanceId: 't', categoryId: 'tee', aspectRatio: 1, displayScale: 1, priority: 0 },
+    ]
+    expect(matchTemplate([t], 'bg', items, tree)).toBe(t)
+    const layout = layoutFromTemplate(t, items, { width: 1000, height: 500 }, tree)
+    expect(layout.placements.map((p) => [p.instanceId, Math.round(p.x)])).toEqual([
+      ['t', 100],
+      ['b', 400],
+    ])
+  })
+
+  it('prefers the most specific matching template, then the template order', () => {
+    const broad = template({ id: 'broad', slots: [slot('apparel', 0.1), slot('apparel', 0.5)] })
+    const narrow = template({ id: 'narrow', slots: [slot('shirt', 0.1), slot('bib', 0.5)] })
+    const twin = template({ id: 'twin', slots: [slot('bib', 0.1), slot('shirt', 0.5)] })
+    expect(matchTemplate([broad, narrow, twin], 'bg', cats('tee', 'bib'), tree)?.id).toBe('narrow')
+    expect(matchTemplate([broad, twin, narrow], 'bg', cats('tee', 'bib'), tree)?.id).toBe('twin')
+    expect(matchTemplate([broad, narrow], 'bg', cats('bib', 'bib'), tree)?.id).toBe('broad')
+  })
+})
+
 describe('layoutFromTemplate', () => {
   const size = { width: 1000, height: 500 }
   const item = (instanceId: string, categoryId: string, aspectRatio: number) => ({

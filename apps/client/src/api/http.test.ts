@@ -25,7 +25,7 @@ describe('createApiClient', () => {
     const client = createApiClient({ baseUrl: 'http://api.test/api/v1/', fetch })
 
     await expect(
-      client.get('/public/products', { query: { q: 'áo', page: 2, categorySlug: undefined } }),
+      client.get('/public/products', { query: { q: 'áo', page: 2, categoryPath: undefined } }),
     ).resolves.toEqual({ id: 1 })
     expect(fetch).toHaveBeenCalledWith(
       'http://api.test/api/v1/public/products?q=%C3%A1o&page=2',

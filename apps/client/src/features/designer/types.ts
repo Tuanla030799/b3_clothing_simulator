@@ -11,6 +11,8 @@ export type CategoryId = string
 
 export interface Category {
   id: CategoryId
+  /** Null for a root; the tree is at most 3 levels and only leaves hold products. */
+  parentId: CategoryId | null
   name: string
   /** Stable, environment-independent key (ids differ between databases). */
   slug: string
@@ -72,8 +74,9 @@ export interface SelectionRules {
   /** Most items drawn in the set picture (all categories, repeats included). */
   maxItems: number
   /**
-   * Per-category limits of the picture, keyed by category id. Categories without an entry have no
-   * own limit.
+   * Per-category limits of the picture, keyed by category id at any level of the tree: an item
+   * counts for its category and every ancestor, and each limit applies on its own. Categories
+   * without an entry have no own limit.
    */
   categoryLimits: Partial<Record<CategoryId, number>>
   /** Most items in one order (the cart); items beyond the picture limits are still designed. */

@@ -71,7 +71,7 @@ export async function loadDesignerCatalog(
   )
 
   return {
-    categories: categories.map(({ id, name, slug }) => ({ id, name, slug })),
+    categories: categories.map(({ id, parentId, name, slug }) => ({ id, parentId, name, slug })),
     products: details.flatMap((product) =>
       product ? product.colors.map((color) => toProduct(product, color)) : [],
     ),

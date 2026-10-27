@@ -9,6 +9,7 @@ import type { Category, ProductListItem } from '../api/types'
 import PageHeader from '../components/PageHeader.vue'
 import { useFeedback } from '../composables/useFeedback'
 import { usePagedTable } from '../composables/usePagedTable'
+import { categoryOptions } from '../utils/categoryTree'
 import { formatDateTime, formatPrice } from '../utils/format'
 
 const router = useRouter()
@@ -24,9 +25,10 @@ const filters = reactive<{ q: string; categoryId: string; active: 'all' | 'true'
   categoryId: 'all',
   active: 'all',
 })
-const categoryOptions = computed(() => [
+const categoryFilterOptions = computed(() => [
   { label: 'Tất cả danh mục', value: 'all' },
-  ...categories.value.map((category) => ({ label: category.name, value: category.id })),
+  // A parent category lists the products of its whole branch.
+  ...categoryOptions(categories.value).map(({ label, value }) => ({ label, value })),
 ])
 const activeOptions = [
   { label: 'Tất cả trạng thái', value: 'all' },
@@ -143,7 +145,7 @@ function remove(item: ProductListItem) {
       <Select
         v-model="filters.categoryId"
         size="small"
-        :options="categoryOptions"
+        :options="categoryFilterOptions"
         aria-label="Lọc danh mục"
       />
     </Col>

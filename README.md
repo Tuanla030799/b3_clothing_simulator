@@ -172,7 +172,11 @@ Code: [apps/client/src/features/designer](apps/client/src/features/designer).
   or one collection's (`?bo-suu-tap=<slug>`), never the whole catalog.
 - Limits come from the config. `maxOrderItems` (API: 50) caps the order/cart and is the only limit
   that blocks adding. `maxItems` and per-category limits (keyed by the API **category id**, never
-  by display name) cap the **set picture**: `pictureIds` takes items in add order while they fit;
+  by display name) cap the **set picture**. Categories form a tree (at most 3 levels, only leaves
+  hold products): an item counts for its category and every ancestor, so a limit on a parent
+  covers its whole branch, and each limit applies on its own (`catalog.categories` carries
+  `parentId`; helpers in [categoryTree.ts](apps/client/src/features/catalog/categoryTree.ts)).
+  `pictureIds` takes items in add order while they fit;
   the others are designed and ordered (`inPreview: false`) but not drawn, and a notice
   (`PictureNotice`) says so next to the download button and at checkout.
 - Each addition to the set is a separate item with its own `instanceId`.
@@ -417,11 +421,15 @@ composition.issues / status // 'empty' | 'loading' | 'ready' | 'incomplete'
 ### Admin-arranged templates ("Mẫu sắp xếp")
 
 `catalog.layouts` (API `public/designer/config` → `layouts[]`) holds layouts the admin arranged for
-one background: one rectangle (fractions of the background) per item and category. `matchTemplate`
-(`templateLayout.ts`) picks the template of the **shown** background whose categories and counts
-equal the set's; `layoutFromTemplate` fills the slots of a category in selection order and fits each
-item inside its rectangle without distortion (`displayScale` is not used). No match → the automatic
-layout below. The admin edits templates at `/thiet-ke/mau-sap-xep`.
+one background: one rectangle (fractions of the background) per item and category. A slot takes an
+item of its category or of any descendant. `assignSlots` (`templateLayout.ts`) gives every item its
+own slot: the deepest slots choose first (then slot order), each taking the first unplaced item of
+its branch in selection order. `matchTemplate` picks, among the templates of the **shown**
+background that assign the whole set, the most specific one (largest sum of slot levels), then the
+first in template order; `layoutFromTemplate` places the items by the same assignment and fits each
+item inside its rectangle without distortion (`displayScale` is not used). With leaf-only slots
+this is "same categories and counts, filled in selection order". No match → the automatic layout
+below. The admin edits templates at `/thiet-ke/mau-sap-xep`.
 
 ### When the layout changes
 
@@ -651,9 +659,12 @@ Code: [features/catalog](apps/client/src/features/catalog) (`ProductCard`, `Coll
 `CollectionPage`. Lists that grow use `usePagedList` (“Xem thêm” loads the next page of 24; a
 failed page keeps the shown items and offers “Thử lại”).
 
-- `/san-pham`: category filter (buttons from `public/categories`) and name search; both are kept in
-  the URL (`?danh-muc=<category slug>&q=<text>`) so a filtered list can be shared or reloaded.
-- `/san-pham/:slug`: display photo of the chosen color, category, name, price, description, color
+- `/san-pham` (all products) and `/danh-muc/<category path>` (e.g. `/danh-muc/ao/ao-thun`: the
+  category and its descendants, API `categoryPath`): one row of filter buttons per level (the roots,
+  then the children of the chosen category), plus name search in `?q=`, so a filtered list can be
+  shared or reloaded. Old links `/san-pham?danh-muc=<slug>` redirect to `/danh-muc/<slug>`.
+- `/san-pham/:slug`: display photo of the chosen color, the category trail (each level links to its
+  list), name, price, description, color
   choice (swatch from `hexCode` when set), the available sizes (chosen when ordering, I4) and
   “Thêm vào giỏ hàng” (the color goes to the cart; designing starts from the cart). Unknown or hidden
   products show
@@ -786,12 +797,19 @@ on a separate subdomain (see [Deployment](#deployment)).
   (categories, banners, backgrounds, ready-made images, order quote/status) stay in modals.
 - **Ordering** is drag and drop ([useRowReorder.ts](apps/admin/src/composables/useRowReorder.ts)
   with SortableJS on the Ant table body, plus up/down buttons for the keyboard in
-  [ReorderHandle.vue](apps/admin/src/components/ReorderHandle.vue)) for categories, collections,
+  [ReorderHandle.vue](apps/admin/src/components/ReorderHandle.vue)) for collections,
   collection members, banners, backgrounds, ready-made images and featured products
   (`/san-pham/noi-bat`, at most 24). The admin only sends the new neighbour
   (`PATCH .../position { afterId }`); the API computes `sortOrder`, so no form has an order field.
   New rows go last; the general product list is newest first. Ordering is off beyond page 1 of a
   list (100 rows per page).
+- **Categories** are a tree (at most 3 levels; only categories without children hold products;
+  hiding one hides its branch). The page loads every category and shows the tree indented; order
+  changes among siblings with the up/down buttons only (no drag: a flat drag position is ambiguous
+  in a tree), and the parent changes in the edit form (`PATCH .../position { parentId, afterId }`,
+  the branch moves along and goes last). Selects show the full trail (“Áo › Áo thun”); a product's
+  category must have no children, while item limits, layout slots and the product filter accept
+  any level ([categoryTree.ts](apps/admin/src/utils/categoryTree.ts)).
 - **Colors** are picked from the API palette (`GET /admin/color-palette`; each key once per
   product, "Nhiều màu" for prints); the name and swatch come from the API, nothing is typed.
 - **Zone editor** ([ProductDesigner.vue](apps/admin/src/features/designer/ProductDesigner.vue), on

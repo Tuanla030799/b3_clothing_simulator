@@ -8,6 +8,7 @@ import { categoriesApi, designAssetsApi, designerApi } from '../api/resources'
 import type { Category, DesignAsset, DesignerSettings } from '../api/types'
 import PageHeader from '../components/PageHeader.vue'
 import { useFeedback } from '../composables/useFeedback'
+import { categoryTrail } from '../utils/categoryTree'
 
 /*
  * Selection limits of the design tool (keyed by category id, never by name) and the default
@@ -163,7 +164,9 @@ const columns: TableColumnType<Category>[] = [
           </Flex>
           <Table row-key="id" :columns="columns" :data-source="categories" :pagination="false">
             <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'name'">{{ record.name }}</template>
+              <template v-if="column.key === 'name'">{{
+                categoryTrail(categories, record.id)
+              }}</template>
               <template v-else-if="column.key === 'limit'">
                 <InputNumber
                   v-model:value="limits[record.id]"

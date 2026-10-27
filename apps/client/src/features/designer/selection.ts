@@ -1,3 +1,4 @@
+import { type CategoryNode, lineageIds } from '../catalog/categoryTree'
 import type { CategoryId, Product, SelectionRules } from './types'
 
 /*
@@ -6,7 +7,8 @@ import type { CategoryId, Product, SelectionRules } from './types'
  *
  * Two limits: an order holds at most `maxOrderItems` items (adding is blocked beyond it), and the
  * set picture shows at most `maxItems` items within the per-category limits. Items outside the
- * picture are still designed and ordered; `pictureIds` decides which items are drawn.
+ * picture are still designed and ordered; `pictureIds` decides which items are drawn. A category
+ * limit covers the category's whole branch (an item counts for its category and every ancestor).
  */
 
 /** One selected item. Several items may share a productId; instanceId is unique per addition. */
@@ -25,6 +27,8 @@ export interface SelectionState {
 export interface SelectionCatalog {
   readonly products: readonly Product[]
   readonly rules: SelectionRules
+  /** The visible category tree; without it every category counts as a root. */
+  readonly categories?: readonly CategoryNode[]
 }
 
 export type AddBlockReason =
@@ -72,7 +76,7 @@ export function checkCanAdd(
 
 /**
  * The items drawn in the set picture: in the order they were added, each item is taken while the
- * picture has room (`maxItems`) and its category is under its limit. Later items that do not fit
+ * picture has room (`maxItems`) and its category and every ancestor are under their limits. Later items that do not fit
  * are skipped, so a hat added after three shirts can still be drawn when shirts are limited.
  */
 export function pictureIds(items: readonly SelectedItem[], catalog: SelectionCatalog): Set<string> {
@@ -83,10 +87,13 @@ export function pictureIds(items: readonly SelectedItem[], catalog: SelectionCat
     if (chosen.size >= maxItems) break
     const product = findProduct(catalog, item.productId)
     if (!product) continue
-    const count = perCategory.get(product.categoryId) ?? 0
-    const limit = categoryLimits[product.categoryId]
-    if (limit !== undefined && count >= limit) continue
-    perCategory.set(product.categoryId, count + 1)
+    const branch = lineageIds(catalog.categories ?? [], product.categoryId)
+    const full = branch.some((id) => {
+      const limit = categoryLimits[id]
+      return limit !== undefined && (perCategory.get(id) ?? 0) >= limit
+    })
+    if (full) continue
+    for (const id of branch) perCategory.set(id, (perCategory.get(id) ?? 0) + 1)
     chosen.add(item.instanceId)
   }
   return chosen

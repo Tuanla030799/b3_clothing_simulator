@@ -80,6 +80,33 @@ describe('adding items', () => {
     expect([...pictureIds(state.items, catalog)]).toEqual(['id-1', 'id-2', 'id-4', 'id-5'])
   })
 
+  it('applies a parent category limit to its whole branch, next to the child limits', () => {
+    // apparel > shirt, apparel > hat; at most 3 apparel items and 2 shirts in the picture.
+    const tree: SelectionCatalog = {
+      ...catalog,
+      rules: { ...catalog.rules, maxItems: 10, categoryLimits: { apparel: 3, shirt: 2 } },
+      categories: [
+        { id: 'apparel', parentId: null },
+        { id: 'shirt', parentId: 'apparel' },
+        { id: 'hat', parentId: 'apparel' },
+      ],
+    }
+    const createId = sequentialIds()
+    const state = [shirt.id, shirt.id, shirt.id, hat.id, hat.id].reduce(
+      (current, id) => addItem(current, id, tree, createId).state,
+      emptySelection,
+    )
+    // The third shirt is over the shirt limit, the second hat over the apparel limit.
+    expect([...pictureIds(state.items, tree)]).toEqual(['id-1', 'id-2', 'id-4'])
+    // Without the tree, every category is a root and only the shirt limit applies.
+    expect([...pictureIds(state.items, { ...tree, categories: undefined })]).toEqual([
+      'id-1',
+      'id-2',
+      'id-4',
+      'id-5',
+    ])
+  })
+
   it('leaves the state untouched when an add is rejected', () => {
     const state = addAll(Array.from({ length: 6 }, () => shirt.id))
     const result = addItem(state, shirt.id, catalog, () => 'rejected')

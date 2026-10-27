@@ -30,6 +30,21 @@ describe('router and site links', () => {
     })
   })
 
+  it('lists the products of a category by its path and redirects old filter links', async () => {
+    expect(router.resolve('/danh-muc/ao/ao-thun')).toMatchObject({
+      name: 'category',
+      params: { path: ['ao', 'ao-thun'] },
+    })
+    const memory = createAppRouter(createMemoryHistory())
+    await memory.push('/san-pham?danh-muc=ao&q=thun')
+    expect(memory.currentRoute.value).toMatchObject({
+      name: 'category',
+      fullPath: '/danh-muc/ao?q=thun',
+    })
+    await memory.push('/san-pham?q=thun')
+    expect(memory.currentRoute.value.name).toBe('products')
+  })
+
   it('designs the cart by default, or one collection, and can open the checkout', () => {
     const route = router.resolve('/thiet-ke?bo-suu-tap=mua-he')
     const props = route.matched[0]!.props.default as (r: typeof route) => object

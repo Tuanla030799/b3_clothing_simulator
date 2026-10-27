@@ -6,6 +6,7 @@ import { fieldErrors } from '../../api/httpClient'
 import { productsApi } from '../../api/resources'
 import type { Category, Product, ProductCreateExtras } from '../../api/types'
 import { useFeedback } from '../../composables/useFeedback'
+import { categoryOptions as treeOptions } from '../../utils/categoryTree'
 import { formatMoneyInput, parseMoneyInput } from '../../utils/money'
 import { SLUG_PATTERN, suggestSlug } from '../../utils/slug'
 
@@ -66,12 +67,8 @@ const dirty = computed(() => {
   return (Object.keys(initial) as (keyof FormState)[]).some((key) => form[key] !== initial[key])
 })
 
-const categoryOptions = computed(() =>
-  props.categories.map((category) => ({
-    label: category.isActive ? category.name : `${category.name} (đang ẩn)`,
-    value: category.id,
-  })),
-)
+// Only categories without children hold products; the others are listed but disabled.
+const categoryOptions = computed(() => treeOptions(props.categories, { leavesOnly: true }))
 
 function validate() {
   const next: Record<string, string> = {}

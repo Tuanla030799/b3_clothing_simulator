@@ -16,8 +16,8 @@ const file = (name: string, width = 1448, height = 1086) => ({
   height,
 })
 
-const shirts = { id: 'cat-shirt', name: 'Áo', slug: 'ao' }
-const hats = { id: 'cat-hat', name: 'Mũ', slug: 'mu' }
+const shirts = { id: 'cat-shirt', parentId: null, name: 'Áo', slug: 'ao', path: 'ao' }
+const hats = { id: 'cat-hat', parentId: null, name: 'Mũ', slug: 'mu', path: 'mu' }
 
 const config: PublicDesignerConfig = {
   selection: {

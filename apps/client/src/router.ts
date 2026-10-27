@@ -59,6 +59,22 @@ export const routes: RouteRecordRaw[] = [
     name: 'products',
     component: () => import('./pages/ProductsPage.vue'),
     meta: { title: 'Sản phẩm' },
+    // Old filter links (?danh-muc=<slug>) moved to /danh-muc/<path>; every old category is a root.
+    beforeEnter: (to) => {
+      const old = to.query['danh-muc']
+      const path = (Array.isArray(old) ? old[0] : old)?.trim()
+      if (!path) return true
+      const query = { ...to.query }
+      delete query['danh-muc']
+      return { name: 'category', params: { path: path.split('/') }, query, replace: true }
+    },
+  },
+  {
+    // Products of a category and its descendants: /danh-muc/ao/ao-thun (the category path).
+    path: '/danh-muc/:path+',
+    name: 'category',
+    component: () => import('./pages/ProductsPage.vue'),
+    meta: { title: 'Sản phẩm' },
   },
   {
     path: '/san-pham/:slug',

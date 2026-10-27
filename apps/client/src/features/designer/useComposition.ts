@@ -152,12 +152,12 @@ export function useComposition(
 
   // The admin's arrangement for this background and set, when there is one; else automatic.
   const template = computed(() =>
-    matchTemplate(templates, background.value?.id ?? null, layoutItems.value),
+    matchTemplate(templates, background.value?.id ?? null, layoutItems.value, categories),
   )
 
   const layout = computed<SetLayout>(() =>
     template.value
-      ? layoutFromTemplate(template.value, layoutItems.value, size.value)
+      ? layoutFromTemplate(template.value, layoutItems.value, size.value, categories)
       : layoutSet(layoutItems.value, size.value, {
           paddingRatio: COMPOSITION.paddingRatio,
           gapRatio: COMPOSITION.gapRatio,

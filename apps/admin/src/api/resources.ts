@@ -45,14 +45,21 @@ export const filesApi = {
 }
 
 export const categoriesApi = {
-  list: (query: PageQuery & { q?: string; isActive?: boolean } = {}) =>
+  list: (query: PageQuery & { q?: string; isActive?: boolean; parentId?: string } = {}) =>
     http.get<Paged<Category>>('admin/categories', { query }),
+  /** Every category, flat in tree order (parents before their children). */
   all: () => http.getAll<Category>('admin/categories'),
-  /** Drag and drop: puts the row right after `afterId` (null = first); the API computes the order. */
-  move: (categoryId: string, afterId: string | null) =>
-    http.patch(`admin/categories/${id(categoryId)}/position`, { afterId }),
+  /**
+   * Puts the category right after the sibling `afterId` (null = first); the API computes the
+   * order. With `parentId` (null = root) the branch moves under that parent first.
+   */
+  move: (categoryId: string, afterId: string | null, parentId?: string | null) =>
+    http.patch(`admin/categories/${id(categoryId)}/position`, {
+      afterId,
+      ...(parentId === undefined ? {} : { parentId }),
+    }),
   create: (body: CategoryInput) => http.post<Category>('admin/categories', body),
-  update: (categoryId: string, body: Partial<CategoryInput>) =>
+  update: (categoryId: string, body: Partial<Omit<CategoryInput, 'parentId'>>) =>
     http.patch<Category>(`admin/categories/${id(categoryId)}`, body),
   remove: (categoryId: string) => http.delete(`admin/categories/${id(categoryId)}`),
 }

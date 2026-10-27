@@ -14,6 +14,7 @@ import { useLeaveGuard } from '../composables/useLeaveGuard'
 import LayoutCanvas, { type SlotPreview } from '../features/designer/LayoutCanvas.vue'
 import { measureVisible, snapSlot, visibleAspect } from '../features/designer/layoutPreview'
 import { round4 } from '../features/designer/zoneGeometry'
+import { categoryOptions as treeOptions } from '../utils/categoryTree'
 
 /*
  * Create or edit a set layout: pick a background, then add one rectangle per item and drag it to
@@ -94,12 +95,8 @@ const backgroundOptions = computed(() =>
     value: entry.id,
   })),
 )
-const categoryOptions = computed(() =>
-  categories.value.map((category) => ({
-    label: category.isActive ? category.name : `${category.name} (đang ẩn)`,
-    value: category.id,
-  })),
-)
+// Any level: a rectangle of a parent category takes items of its whole branch.
+const categoryOptions = computed(() => treeOptions(categories.value))
 const categoryName = (id: string) =>
   categories.value.find((category) => category.id === id)?.name ?? 'Chưa chọn danh mục'
 

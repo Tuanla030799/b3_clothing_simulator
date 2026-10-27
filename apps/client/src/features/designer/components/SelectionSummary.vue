@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Flex } from '@lituta/ui'
+import { lineageIds } from '../../catalog/categoryTree'
 import { injectCatalog } from '../catalog'
 import { injectSelection } from '../useSelection'
 
@@ -13,6 +14,9 @@ const selection = injectSelection()
  */
 const counters = computed(() => {
   const drawn = selection.pictureEntries.value.map((entry) => entry.product.categoryId)
+  // A limit on a parent category counts the items of its whole branch.
+  const inBranch = (itemCategoryId: string, categoryId: string) =>
+    lineageIds(catalog.categories, itemCategoryId).includes(categoryId)
   return [
     {
       key: 'total',
@@ -24,12 +28,12 @@ const counters = computed(() => {
     // Limited categories that have items in the order.
     ...Object.entries(catalog.rules.categoryLimits)
       .filter(([categoryId]) =>
-        selection.entries.value.some((entry) => entry.product.categoryId === categoryId),
+        selection.entries.value.some((entry) => inBranch(entry.product.categoryId, categoryId)),
       )
       .map(([categoryId, max]) => ({
         key: categoryId,
         label: `${catalog.categories.find((category) => category.id === categoryId)?.name ?? categoryId} trong ảnh`,
-        count: drawn.filter((id) => id === categoryId).length,
+        count: drawn.filter((id) => inBranch(id, categoryId)).length,
         max: max ?? 0,
       })),
   ]
